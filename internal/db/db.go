@@ -1,0 +1,55 @@
+package db
+
+import (
+	"fmt"
+	"go-fiber-svelte/internal/config"
+	"go-fiber-svelte/internal/lib"
+	"strings"
+	"time"
+
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+	"gorm.io/gorm/logger"
+)
+
+var database *gorm.DB
+
+type dbWriter struct{}
+
+func (dbWriter) Printf(format string, args ...interface{}) {
+	msg := fmt.Sprintf(format, args...)
+	parts := strings.SplitN(msg, "\n", 2)
+	if len(parts) > 1 {
+		msg = parts[1]
+	}
+	if idx := strings.LastIndex(msg, "] "); idx != -1 {
+		msg = strings.TrimSpace(msg[idx+2:])
+	}
+	lib.Log.Info(strings.ReplaceAll(msg, `"`, "'"), "db")
+}
+
+func Init() {
+	var err error
+	logLevel := logger.Warn
+	if config.APP_Env == "local" {
+		logLevel = logger.Info
+	}
+	database, err = gorm.Open(postgres.Open(config.APP_DbUrl), &gorm.Config{
+		Logger: logger.New(
+			dbWriter{},
+			logger.Config{
+				SlowThreshold:             time.Second,
+				LogLevel:                  logLevel,
+				IgnoreRecordNotFoundError: true,
+				Colorful:                  false,
+			},
+		),
+	})
+	if err != nil {
+		panic("failed to connect database: " + err.Error())
+	}
+}
+
+func GetDB() *gorm.DB {
+	return database
+}

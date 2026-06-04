@@ -1,0 +1,21 @@
+{
+    "pong": "pong",
+    "unauthorized": "Unauthorized",
+    "invalid_expired_token": "Invalid or expired token",
+    "invalid_request_body": "Invalid request body",
+    "invalid_credentials": "Invalid credentials",
+    "failed_generate_token": "Failed to generate token",
+    "login_successful": "Login successful",
+    "logout_successful": "Logout successful",
+    "user_not_found": "User not found",
+    "user_retrieved": "User retrieved",
+    "invalid_id": "Invalid ID",
+    "permission_not_found": "Permission not found",
+    "permission_deleted": "Permission deleted",
+    "permissions_retrieved": "Permissions retrieved",
+    "permission_already_exists": "Permission already exists",
+    "permission_created": "Permission created",
+    "roles_retrieved": "Roles retrieved",
+    "internal_error": "Internal server error",
+    "validation_error": "Validation error"
+}
