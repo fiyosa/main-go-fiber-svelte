@@ -1,9 +1,14 @@
 package lib
 
 import (
+	"crypto/aes"
+	"crypto/cipher"
+	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
-	"fmt"
+	"errors"
 	"go-fiber-svelte/internal/config"
+	"io"
 
 	"github.com/speps/go-hashids/v2"
 	"golang.org/x/crypto/bcrypt"
@@ -14,7 +19,7 @@ var Hash hash
 type hash struct{}
 
 func (*hash) Create(data string) (string, error) {
-	result, err := bcrypt.GenerateFromPassword([]byte(data), 10)
+	result, err := bcrypt.GenerateFromPassword([]byte(data), 12)
 	if err != nil {
 		return "", err
 	}
@@ -47,17 +52,60 @@ func (*hash) DecodeId(data string) (int, error) {
 }
 
 func EncodeStr(data string) (string, error) {
-	result := base64.StdEncoding.EncodeToString([]byte(data))
-	return result, nil
+	key := deriveKey()
+	block, err := aes.NewCipher(key)
+	if err != nil {
+		return "", err
+	}
+
+	aesGCM, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", err
+	}
+
+	nonce := make([]byte, aesGCM.NonceSize())
+	if _, err := io.ReadFull(rand.Reader, nonce); err != nil {
+		return "", err
+	}
+
+	ciphertext := aesGCM.Seal(nonce, nonce, []byte(data), nil)
+	return base64.StdEncoding.EncodeToString(ciphertext), nil
 }
 
 func DecodeStr(encode string) (string, error) {
-	result, err := base64.StdEncoding.DecodeString(encode)
+	key := deriveKey()
+	block, err := aes.NewCipher(key)
 	if err != nil {
-		fmt.Println("Error decoding:", err)
 		return "", err
 	}
-	return string(result), nil
+
+	aesGCM, err := cipher.NewGCM(block)
+	if err != nil {
+		return "", err
+	}
+
+	ciphertext, err := base64.StdEncoding.DecodeString(encode)
+	if err != nil {
+		return "", err
+	}
+
+	nonceSize := aesGCM.NonceSize()
+	if len(ciphertext) < nonceSize {
+		return "", errors.New("ciphertext too short")
+	}
+
+	nonce, ciphertext := ciphertext[:nonceSize], ciphertext[nonceSize:]
+	plaintext, err := aesGCM.Open(nil, nonce, ciphertext, nil)
+	if err != nil {
+		return "", err
+	}
+
+	return string(plaintext), nil
+}
+
+func deriveKey() []byte {
+	h := sha256.Sum256([]byte(config.APP_Secret))
+	return h[:]
 }
 
 func setupHD() *hashids.HashID {
