@@ -33,9 +33,9 @@ func ResPaginate(data interface{}, meta *Meta, msg string) *Response {
 }
 
 func ResCatch(err error) *Response {
-	return &Response{Message: lang.T("internal_error")}
+	return &Response{Message: lang.T.Get().SOMETHING_WENT_WRONG}
 }
 
 func ResValidate(err error) *Response {
-	return &Response{Message: lang.T("validation_error"), Errors: err.Error()}
+	return &Response{Message: "Validation error", Errors: err.Error()}
 }

@@ -1,36 +1,33 @@
 package lang
 
 import (
-	"encoding/json"
+	"fmt"
 	"go-fiber-svelte/internal/config"
-	"os"
+	"go-fiber-svelte/internal/lang/locales"
 	"strings"
 )
 
-var translations map[string]string
+var T t
 
-func Init() {
-	locale := config.APP_Locale
-	if locale == "" {
-		locale = "en"
+type t struct{}
+
+func (*t) Convert(msg string, args ...map[string]any) string {
+	if len(args) == 0 || args[0] == nil {
+		return msg
 	}
-	file, err := os.ReadFile("internal/lang/locales/" + locale + ".json")
-	if err != nil {
-		translations = make(map[string]string)
-		return
+
+	newMsg := msg
+	for key, value := range args[0] {
+		newMsg = strings.ReplaceAll(newMsg, ":"+key, fmt.Sprintf("%v", value))
 	}
-	json.Unmarshal(file, &translations)
+	return newMsg
 }
 
-func T(key string, args ...map[string]string) string {
-	msg, ok := translations[key]
-	if !ok {
-		return key
-	}
-	if len(args) > 0 {
-		for k, v := range args[0] {
-			msg = strings.ReplaceAll(msg, ":"+k, v)
-		}
-	}
-	return msg
+func (*t) Get() locales.ILang {
+	return locale[config.APP_Locale]
+}
+
+var locale = map[string]locales.ILang{
+	"en": locales.EN,
+	"id": locales.ID,
 }

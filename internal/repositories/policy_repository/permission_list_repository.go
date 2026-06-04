@@ -14,7 +14,7 @@ func PermissionListRepository(c *fiber.Ctx) error {
 	var permissions []models.Permission
 	database.Find(&permissions)
 	return c.JSON(fiber.Map{
-		"message": lang.T("permissions_retrieved"),
+		"message": lang.T.Convert(lang.T.Get().RETRIEVED_SUCCESSFULLY, map[string]any{"operator": "Permission"}),
 		"data":    policy_resource.PermissionToResource(permissions),
 	})
 }

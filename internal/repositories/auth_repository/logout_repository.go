@@ -16,6 +16,6 @@ func LogoutRepository(c *fiber.Ctx) error {
 		Update("revoke", true)
 	c.ClearCookie("token")
 	return c.JSON(fiber.Map{
-		"message": lang.T("logout_successful"),
+		"message": lang.T.Convert(lang.T.Get().SAVED_SUCCESSFULLY, map[string]any{"operator": lang.T.Get().LOGOUT}),
 	})
 }

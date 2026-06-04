@@ -16,11 +16,11 @@ func UserRepository(c *fiber.Ctx) error {
 	result := database.Preload("Roles").Preload("UserDetails").First(&user, userId)
 	if result.Error != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-			"message": lang.T("user_not_found"),
+			"message": lang.T.Convert(lang.T.Get().NOT_FOUND, map[string]any{"operator": lang.T.Get().USER}),
 		})
 	}
 	return c.JSON(fiber.Map{
-		"message": lang.T("user_retrieved"),
+		"message": lang.T.Convert(lang.T.Get().RETRIEVED_SUCCESSFULLY, map[string]any{"operator": lang.T.Get().USER}),
 		"data":    auth.UserToResource(user),
 	})
 }

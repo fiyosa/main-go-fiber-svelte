@@ -13,7 +13,7 @@ func PermissionStoreRepository(c *fiber.Ctx) error {
 	req := new(policy_request.PermissionStoreRequest)
 	if err := c.BodyParser(req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"message": lang.T("invalid_request_body"),
+			"message": "Invalid request body",
 		})
 	}
 	permission := models.Permission{
@@ -23,11 +23,11 @@ func PermissionStoreRepository(c *fiber.Ctx) error {
 	database := db.GetDB()
 	if err := database.Create(&permission).Error; err != nil {
 		return c.Status(fiber.StatusConflict).JSON(fiber.Map{
-			"message": lang.T("permission_already_exists"),
+			"message": lang.T.Convert(lang.T.Get().ALREADY_EXIST, map[string]any{"operator": "Permission"}),
 		})
 	}
 	return c.Status(fiber.StatusCreated).JSON(fiber.Map{
-		"message": lang.T("permission_created"),
+		"message": lang.T.Convert(lang.T.Get().SAVED_SUCCESSFULLY, map[string]any{"operator": "Permission"}),
 		"data":    permission,
 	})
 }

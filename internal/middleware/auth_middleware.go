@@ -19,13 +19,13 @@ func AuthMiddleware() fiber.Handler {
 		}
 		if token == "" {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"message": lang.T("unauthorized"),
+				"message": lang.T.Get().UNAUTHORIZED_ACCESS,
 			})
 		}
 		claims, err := lib.Jwt.Verify(token)
 		if err != nil {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"message": lang.T("invalid_expired_token"),
+				"message": lang.T.Get().UNAUTHORIZED_ACCESS,
 			})
 		}
 		userId := int(claims["user_id"].(float64))

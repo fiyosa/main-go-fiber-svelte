@@ -14,7 +14,7 @@ func RoleListRepository(c *fiber.Ctx) error {
 	var roles []models.Role
 	database.Preload("Permissions").Find(&roles)
 	return c.JSON(fiber.Map{
-		"message": lang.T("roles_retrieved"),
+		"message": lang.T.Convert(lang.T.Get().RETRIEVED_SUCCESSFULLY, map[string]any{"operator": lang.T.Get().ROLE}),
 		"data":    policy_resource.RoleListToResource(roles),
 	})
 }

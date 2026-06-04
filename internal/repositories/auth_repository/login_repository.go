@@ -15,7 +15,7 @@ func LoginRepository(c *fiber.Ctx) error {
 	req := new(auth_request.LoginRequest)
 	if err := c.BodyParser(req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"message": lang.T("invalid_request_body"),
+			"message": "Invalid request body",
 		})
 	}
 	database := db.GetDB()
@@ -23,18 +23,18 @@ func LoginRepository(c *fiber.Ctx) error {
 	result := database.Where("email = ?", req.Email).First(&user)
 	if result.Error != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"message": lang.T("invalid_credentials"),
+			"message": lang.T.Get().AUTH_FAILED,
 		})
 	}
 	if !lib.Hash.Verify(req.Password, user.Password) {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"message": lang.T("invalid_credentials"),
+			"message": lang.T.Get().AUTH_FAILED,
 		})
 	}
 	token, err := lib.Jwt.Create(user.ID)
 	if err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"message": lang.T("failed_generate_token"),
+			"message": lang.T.Get().SOMETHING_WENT_WRONG,
 		})
 	}
 	authRecord := models.Auth{
@@ -54,7 +54,7 @@ func LoginRepository(c *fiber.Ctx) error {
 		Secure:   config.APP_Env != "local",
 	})
 	return c.JSON(fiber.Map{
-		"message": lang.T("login_successful"),
+		"message": lang.T.Convert(lang.T.Get().SAVED_SUCCESSFULLY, map[string]any{"operator": "Login"}),
 		"data": fiber.Map{
 			"token": token,
 			"user":  user,
