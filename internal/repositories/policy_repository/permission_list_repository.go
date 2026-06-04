@@ -10,7 +10,7 @@ import (
 )
 
 func PermissionListRepository(c *fiber.Ctx) error {
-	database := db.GetDB()
+	database := db.RUN
 	var permissions []models.Permission
 	database.Find(&permissions)
 	return c.JSON(fiber.Map{

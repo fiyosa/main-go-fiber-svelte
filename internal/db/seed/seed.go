@@ -9,7 +9,7 @@ import (
 )
 
 func Run() {
-	database := db.GetDB()
+	database := db.RUN
 
 	createRoles(database)
 	createPermissions(database)

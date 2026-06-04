@@ -13,14 +13,13 @@ import (
 
 func LoginRepository(c *fiber.Ctx) error {
 	req := new(auth_request.LoginRequest)
-	if err := c.BodyParser(req); err != nil {
-		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-			"message": "Invalid request body",
-		})
+
+	if err, isOk := lib.Validate.Check(c, req); !isOk {
+		return err
 	}
-	database := db.GetDB()
+
 	var user models.User
-	result := database.Where("email = ?", req.Email).First(&user)
+	result := db.RUN.Where("email = ?", req.Email).First(&user)
 	if result.Error != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"message": lang.T.Get().AUTH_FAILED,
@@ -44,7 +43,7 @@ func LoginRepository(c *fiber.Ctx) error {
 		IP:        c.IP(),
 		UserAgent: c.Get("User-Agent"),
 	}
-	database.Create(&authRecord)
+	db.RUN.Create(&authRecord)
 
 	c.Cookie(&fiber.Cookie{
 		Name:     "token",

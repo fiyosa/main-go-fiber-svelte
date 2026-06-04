@@ -12,7 +12,7 @@ type AuthProvider struct {
 }
 
 func NewAuthProvider() *AuthProvider {
-	return &AuthProvider{db: db.GetDB()}
+	return &AuthProvider{db: db.RUN}
 }
 
 func (p *AuthProvider) CheckPermission(userId int, permissionName string) bool {

@@ -12,7 +12,7 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-var database *gorm.DB
+var RUN *gorm.DB
 
 type dbWriter struct{}
 
@@ -34,7 +34,7 @@ func Init() {
 	if config.APP_Env == "local" {
 		logLevel = logger.Info
 	}
-	database, err = gorm.Open(postgres.Open(config.APP_DbUrl), &gorm.Config{
+	RUN, err = gorm.Open(postgres.Open(config.APP_DbUrl), &gorm.Config{
 		Logger: logger.New(
 			dbWriter{},
 			logger.Config{
@@ -48,8 +48,4 @@ func Init() {
 	if err != nil {
 		panic("failed to connect database: " + err.Error())
 	}
-}
-
-func GetDB() *gorm.DB {
-	return database
 }

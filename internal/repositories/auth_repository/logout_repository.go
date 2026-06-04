@@ -10,7 +10,7 @@ import (
 
 func LogoutRepository(c *fiber.Ctx) error {
 	userId := c.Locals("user_id").(int)
-	database := db.GetDB()
+	database := db.RUN
 	database.Model(&models.Auth{}).
 		Where("user_id = ? AND revoke = ?", userId, false).
 		Update("revoke", true)

@@ -10,7 +10,7 @@ import (
 )
 
 func RoleListRepository(c *fiber.Ctx) error {
-	database := db.GetDB()
+	database := db.RUN
 	var roles []models.Role
 	database.Preload("Permissions").Find(&roles)
 	return c.JSON(fiber.Map{

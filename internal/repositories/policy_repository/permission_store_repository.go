@@ -20,7 +20,7 @@ func PermissionStoreRepository(c *fiber.Ctx) error {
 		Name:  req.Name,
 		Notes: req.Notes,
 	}
-	database := db.GetDB()
+	database := db.RUN
 	if err := database.Create(&permission).Error; err != nil {
 		return c.Status(fiber.StatusConflict).JSON(fiber.Map{
 			"message": lang.T.Convert(lang.T.Get().ALREADY_EXIST, map[string]any{"operator": "Permission"}),

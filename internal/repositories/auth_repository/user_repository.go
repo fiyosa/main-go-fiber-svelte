@@ -4,14 +4,14 @@ import (
 	"go-fiber-svelte/internal/db"
 	"go-fiber-svelte/internal/db/models"
 	"go-fiber-svelte/internal/lang"
-	"go-fiber-svelte/internal/resources/auth_resource"
+	auth "go-fiber-svelte/internal/resources/auth_resource"
 
 	"github.com/gofiber/fiber/v2"
 )
 
 func UserRepository(c *fiber.Ctx) error {
 	userId := c.Locals("user_id").(int)
-	database := db.GetDB()
+	database := db.RUN
 	var user models.User
 	result := database.Preload("Roles").Preload("UserDetails").First(&user, userId)
 	if result.Error != nil {

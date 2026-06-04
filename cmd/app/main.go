@@ -3,8 +3,8 @@ package main
 import (
 	"strings"
 
+	"go-fiber-svelte/internal/bootstrap"
 	"go-fiber-svelte/internal/config"
-	"go-fiber-svelte/internal/db"
 	"go-fiber-svelte/internal/provider"
 	"go-fiber-svelte/internal/routes"
 
@@ -15,8 +15,7 @@ import (
 )
 
 func main() {
-	config.InitConfigApp()
-	db.Init()
+	bootstrap.Init()
 
 	app := fiber.New(fiber.Config{
 		ErrorHandler: func(c *fiber.Ctx, err error) error {

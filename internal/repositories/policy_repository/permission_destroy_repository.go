@@ -15,7 +15,7 @@ func PermissionDestroyRepository(c *fiber.Ctx) error {
 			"message": "Invalid ID",
 		})
 	}
-	database := db.GetDB()
+	database := db.RUN
 	result := database.Delete(&models.Permission{}, id)
 	if result.RowsAffected == 0 {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
