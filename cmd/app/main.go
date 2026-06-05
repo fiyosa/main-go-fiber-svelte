@@ -41,7 +41,7 @@ func main() {
 		return c.SendFile("public/index.html")
 	})
 
-	port := config.APP_Port
+	port := config.APP_PORT
 	if port == "" {
 		port = "8000"
 	}

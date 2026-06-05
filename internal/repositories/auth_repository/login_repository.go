@@ -45,7 +45,7 @@ func LoginRepository(c *fiber.Ctx) error {
 		Value:    token,
 		Path:     "/",
 		HTTPOnly: true,
-		Secure:   config.APP_Env != "local",
+		Secure:   config.APP_ENV != "local",
 	})
 	return c.JSON(helper.Res.Success(lang.T.Convert(lang.T.Get().SAVED_SUCCESSFULLY, map[string]any{"operator": "Login"})))
 }

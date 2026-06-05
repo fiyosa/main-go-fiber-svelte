@@ -31,10 +31,10 @@ func (dbWriter) Printf(format string, args ...interface{}) {
 func Init() {
 	var err error
 	logLevel := logger.Warn
-	if config.APP_Env == "local" {
+	if config.APP_ENV == "local" {
 		logLevel = logger.Info
 	}
-	RUN, err = gorm.Open(postgres.Open(config.APP_DbUrl), &gorm.Config{
+	RUN, err = gorm.Open(postgres.Open(config.DB_URL), &gorm.Config{
 		Logger: logger.New(
 			dbWriter{},
 			logger.Config{

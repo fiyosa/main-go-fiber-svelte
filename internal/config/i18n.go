@@ -18,7 +18,7 @@ var (
 )
 
 func I18n() {
-	locale := APP_Locale
+	locale := APP_LOCALE
 	en := en.New()
 	uni := ut.New(en, en, id.New())
 

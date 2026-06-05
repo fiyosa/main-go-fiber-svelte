@@ -104,13 +104,13 @@ func DecodeStr(encode string) (string, error) {
 }
 
 func deriveKey() []byte {
-	h := sha256.Sum256([]byte(config.APP_Secret))
+	h := sha256.Sum256([]byte(config.APP_SECRET))
 	return h[:]
 }
 
 func setupHD() *hashids.HashID {
 	hd := hashids.NewData()
-	hd.Salt = config.APP_Secret
+	hd.Salt = config.APP_SECRET
 	hd.MinLength = 10
 	h, _ := hashids.NewWithData(hd)
 	return h

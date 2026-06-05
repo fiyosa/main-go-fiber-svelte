@@ -7,7 +7,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-var Jwt = jwtLib{secret: config.APP_Secret, duration: config.APP_JwtDuration}
+var Jwt = jwtLib{secret: config.APP_SECRET, duration: config.APP_JWT_DURATION}
 
 type jwtLib struct {
 	secret   string

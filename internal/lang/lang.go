@@ -24,7 +24,7 @@ func (*t) Convert(msg string, args ...map[string]any) string {
 }
 
 func (*t) Get() locales.ILang {
-	return locale[config.APP_Locale]
+	return locale[config.APP_LOCALE]
 }
 
 var locale = map[string]locales.ILang{

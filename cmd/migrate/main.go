@@ -15,7 +15,7 @@ import (
 func main() {
 	config.InitConfigApp()
 
-	db, err := gorm.Open(postgres.Open(config.APP_DbUrl), &gorm.Config{
+	db, err := gorm.Open(postgres.Open(config.DB_URL), &gorm.Config{
 		Logger: logger.Default.LogMode(logger.Info),
 	})
 	if err != nil {

@@ -7,6 +7,8 @@ import (
 	"sync"
 	"time"
 
+	"go-fiber-svelte/internal/config"
+
 	"github.com/rs/zerolog"
 )
 
@@ -35,6 +37,11 @@ type logWriter struct {
 }
 
 func (l *logLib) getOrCreate(name string) *zerolog.Logger {
+	if !config.APP_LOG {
+		logger := zerolog.Nop()
+		return &logger
+	}
+
 	l.mu.Lock()
 	defer l.mu.Unlock()
 
