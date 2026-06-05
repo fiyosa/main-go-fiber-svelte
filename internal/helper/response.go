@@ -2,6 +2,10 @@ package helper
 
 import "go-fiber-svelte/internal/lang"
 
+var Res res
+
+type res struct{}
+
 type Response struct {
 	Message string      `json:"message"`
 	Data    interface{} `json:"data,omitempty"`
@@ -16,26 +20,26 @@ type Meta struct {
 	TotalPage int `json:"total_page"`
 }
 
-func ResSuccess(msg string, status ...int) *Response {
+func (res) Success(msg string, status ...int) *Response {
 	return &Response{Message: msg}
 }
 
-func ResSuccessData(data interface{}, msg string, status ...int) *Response {
+func (res) SuccessData(data interface{}, msg string, status ...int) *Response {
 	return &Response{Message: msg, Data: data}
 }
 
-func ResError(msg string, errors interface{}, status ...int) *Response {
+func (res) Error(msg string, errors interface{}, status ...int) *Response {
 	return &Response{Message: msg, Errors: errors}
 }
 
-func ResPaginate(data interface{}, meta *Meta, msg string) *Response {
+func (res) Paginate(data interface{}, meta *Meta, msg string) *Response {
 	return &Response{Message: msg, Data: data, Meta: meta}
 }
 
-func ResCatch(err error) *Response {
+func (res) Catch(err error) *Response {
 	return &Response{Message: lang.T.Get().SOMETHING_WENT_WRONG}
 }
 
-func ResValidate(err error) *Response {
+func (res) Validate(err error) *Response {
 	return &Response{Message: "Validation error", Errors: err.Error()}
 }

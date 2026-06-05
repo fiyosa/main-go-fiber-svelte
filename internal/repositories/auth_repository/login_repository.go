@@ -4,6 +4,7 @@ import (
 	"go-fiber-svelte/internal/config"
 	"go-fiber-svelte/internal/db"
 	"go-fiber-svelte/internal/db/models"
+	"go-fiber-svelte/internal/helper"
 	"go-fiber-svelte/internal/lang"
 	"go-fiber-svelte/internal/lib"
 	"go-fiber-svelte/internal/request/auth_request"
@@ -22,21 +23,15 @@ func LoginRepository(c *fiber.Ctx) error {
 	var user models.User
 	result := db.RUN.Where("email = ?", req.Email).First(&user)
 	if result.Error != nil {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"message": lang.T.Get().AUTH_FAILED,
-		})
+		return c.Status(fiber.StatusUnauthorized).JSON(helper.Res.Error(lang.T.Get().AUTH_FAILED, nil))
 	}
 	println("masuk 2")
 	if !lib.Hash.Verify(req.Password, user.Password) {
-		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-			"message": lang.T.Get().AUTH_FAILED,
-		})
+		return c.Status(fiber.StatusUnauthorized).JSON(helper.Res.Error(lang.T.Get().AUTH_FAILED, nil))
 	}
 	token, err := lib.Jwt.Create(user.ID)
 	if err != nil {
-		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-			"message": lang.T.Get().SOMETHING_WENT_WRONG,
-		})
+		return c.Status(fiber.StatusInternalServerError).JSON(helper.Res.Error(lang.T.Get().SOMETHING_WENT_WRONG, nil))
 	}
 	authRecord := models.Auth{
 		UserID:    user.ID,
@@ -54,7 +49,5 @@ func LoginRepository(c *fiber.Ctx) error {
 		HTTPOnly: true,
 		Secure:   config.APP_Env != "local",
 	})
-	return c.JSON(fiber.Map{
-		"message": lang.T.Convert(lang.T.Get().SAVED_SUCCESSFULLY, map[string]any{"operator": "Login"}),
-	})
+	return c.JSON(helper.Res.Success(lang.T.Convert(lang.T.Get().SAVED_SUCCESSFULLY, map[string]any{"operator": "Login"})))
 }

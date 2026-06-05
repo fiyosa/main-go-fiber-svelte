@@ -1,11 +1,13 @@
 package controllers
 
-import "github.com/gofiber/fiber/v2"
+import (
+	"go-fiber-svelte/internal/helper"
+
+	"github.com/gofiber/fiber/v2"
+)
 
 func Ping(c *fiber.Ctx) error {
-	return c.JSON(fiber.Map{
-		"message": "pong",
-	})
+	return c.JSON(helper.Res.Success("pong"))
 }
 
 func GuestOpenAPIPaths() map[string]any {
