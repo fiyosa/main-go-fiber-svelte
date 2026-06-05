@@ -18,6 +18,6 @@ FROM alpine:3.19
 RUN apk --no-cache add ca-certificates tzdata
 WORKDIR /app
 COPY --from=go-builder /app/app .
-COPY --from=spa-builder /spa/public/build ./public/build
+COPY --from=spa-builder /public/build ./public/build
 EXPOSE 8000
 CMD ["./app"]
