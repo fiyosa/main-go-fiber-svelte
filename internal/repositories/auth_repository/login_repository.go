@@ -18,6 +18,7 @@ func LoginRepository(c *fiber.Ctx) error {
 		return err
 	}
 
+	println("masuk 1", req.Email)
 	var user models.User
 	result := db.RUN.Where("email = ?", req.Email).First(&user)
 	if result.Error != nil {
@@ -25,6 +26,7 @@ func LoginRepository(c *fiber.Ctx) error {
 			"message": lang.T.Get().AUTH_FAILED,
 		})
 	}
+	println("masuk 2")
 	if !lib.Hash.Verify(req.Password, user.Password) {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 			"message": lang.T.Get().AUTH_FAILED,
@@ -54,9 +56,5 @@ func LoginRepository(c *fiber.Ctx) error {
 	})
 	return c.JSON(fiber.Map{
 		"message": lang.T.Convert(lang.T.Get().SAVED_SUCCESSFULLY, map[string]any{"operator": "Login"}),
-		"data": fiber.Map{
-			"token": token,
-			"user":  user,
-		},
 	})
 }
