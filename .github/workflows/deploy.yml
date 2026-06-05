@@ -17,8 +17,8 @@ jobs:
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           script: |
-            cd /root/docker/portfolio
+            cd /root/docker/go-fiber-svelte
             git reset --hard
             git pull
             chmod +x ./scripts/deploy.sh
-            bash ./deploy.sh
+            bash ./scripts/deploy.sh
