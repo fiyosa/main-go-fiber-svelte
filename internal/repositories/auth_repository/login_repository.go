@@ -19,13 +19,11 @@ func LoginRepository(c *fiber.Ctx) error {
 		return err
 	}
 
-	println("masuk 1", req.Email)
 	var user models.User
 	result := db.RUN.Where("email = ?", req.Email).First(&user)
 	if result.Error != nil {
 		return c.Status(fiber.StatusUnauthorized).JSON(helper.Res.Error(lang.T.Get().AUTH_FAILED, nil))
 	}
-	println("masuk 2")
 	if !lib.Hash.Verify(req.Password, user.Password) {
 		return c.Status(fiber.StatusUnauthorized).JSON(helper.Res.Error(lang.T.Get().AUTH_FAILED, nil))
 	}

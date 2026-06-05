@@ -4,7 +4,7 @@
 
 - **Name:** go-fiber-svelte
 - **Module:** `go-fiber-svelte`
-- **Stack:** Go 1.22+ (Fiber v2) + PostgreSQL (GORM) + Svelte 5 SPA (Vite + Tailwind CSS v4)
+- **Stack:** Go 1.25+ (Fiber v2) + PostgreSQL (GORM) + Svelte 5 SPA (Vite + Tailwind CSS v4)
 - **Project Layout:** [golang-standards/project-layout](https://github.com/golang-standards/project-layout)
 - **Server:** Go Fiber (via `gofiber/fiber/v2`)
 - **Deployment:** Docker (multi-stage: golang:alpine build + alpine runtime, port 8000)
@@ -18,7 +18,7 @@ Project follows [golang-standards/project-layout](https://github.com/golang-stan
 
 | Directory | Purpose |
 |-----------|---------|
-| `cmd/` | Main applications — one subdirectory per binary (`cmd/app`, `cmd/migrate`). Each has a small `main.go` that imports from `internal/`. |
+| `cmd/` | Main applications — one subdirectory per binary (`cmd/app`, `cmd/migrate`, `cmd/seed`). Each has a small `main.go` that imports from `internal/`. |
 | `internal/` | Private application code — **not importable by external projects** (enforced by Go compiler). All core logic lives here. |
 | `web/` | Web application components — Vite + Svelte 5 SPA frontend. |
 | `public/` | Build output and static assets served by Go Fiber. |
@@ -71,7 +71,7 @@ Project follows [golang-standards/project-layout](https://github.com/golang-stan
 │   │       └── seed.go          # Seeder data awal
 │   │
 │   ├── helper/
-│   │   └── response.go          # resSuccess, resSuccessData, resError, resPaginate, resCatch, resValidate
+│   │   └── response.go          # Res.Success, Res.SuccessData, Res.Error, Res.Paginate, Res.Catch, Res.Validate
 │   │
 │   ├── lang/                    # i18n
 │   │   ├── lang.go              # t._("key"), t._("key", args) helper
@@ -92,7 +92,7 @@ Project follows [golang-standards/project-layout](https://github.com/golang-stan
 │   │   └── openapi.go           # Generate OpenAPI spec
 │   │
 │   ├── provider/                # Core engine
-│   │   ├── route_provider.go    # Route DSL helpers
+│   │   ├── error_provider.go    # Global error handler (ValidationError, fiber.Error)
 │   │   ├── auth_provider.go     # RBAC: user_has_roles → role_has_permissions
 │   │   └── app_provider.go      # Middleware registration
 │   │
@@ -248,12 +248,14 @@ Controllers are exported functions that delegate to repositories. Repositories a
 All from `internal/helper/response.go`:
 | Function | Purpose |
 |----------|---------|
-| `resSuccess(msg, status)` | Success message |
-| `resSuccessData(data, msg, status)` | Success with data |
-| `resError(msg, errors, status)` | Error response |
-| `resPaginate(data, meta, msg)` | Paginated response |
-| `resCatch(error)` | Catch-block handler |
-| `resValidate(error)` | Validation error |
+| `Res.Success(msg)` | Success message |
+| `Res.SuccessData(data, msg)` | Success with data |
+| `Res.Error(msg, errors)` | Error response |
+| `Res.Paginate(data, meta, msg)` | Paginated response |
+| `Res.Catch(err)` | Catch-block handler (generic error) |
+| `Res.Validate(err)` | Validation error |
+
+Semua response API menggunakan `helper.Res.*` — lihat penggunaan di `controllers/`, `repositories/`, dan `provider/error_provider.go`.
 
 **Standard response format:**
 ```json
@@ -365,7 +367,7 @@ db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
 | `API_URL` | `http://localhost:8000` | Public |
 | `PORT` | `8000` | Public |
 
-Config loaded via `internal/config/config.go` (using `github.com/joho/godotenv` + `os.Getenv` or `caarlos0/env`).
+Config loaded via `internal/config/config.go` (using `github.com/joho/godotenv` + `os.Getenv`). Jika file `.env` tidak ditemukan (misal di container), fallback ke env vars dari Docker `--env-file`.
 
 ---
 
@@ -429,18 +431,21 @@ Custom i18n system at `internal/lang/`:
 | Script | Command | Port |
 |--------|---------|------|
 | `dev` | `go run ./cmd/app` / `air` (hot-reload) | 8000 |
-| `build` | `go build -o app ./cmd/app` | - |
-| `run` | `./app` | 8000 |
+| `build` | `go build -o ./tmp/app ./cmd/app` | - |
+| `run` | `./tmp/app` | 8000 |
 | `migrate` | `go run ./cmd/migrate` | - |
 | `lint` | `golangci-lint run ./...` | - |
 | `test` | `go test ./...` | - |
 
 Hot-reload via `air` (`.air.toml`): watches `cmd/` + `internal/`, rebuilds to `./tmp/main.exe` from `./cmd/app`.
 
+Binary output ke `./tmp/` (terdaftar di `.gitignore`).
+
 ### CLI Commands
 
 - **`go run ./cmd/app`** — Start API server
 - **`go run ./cmd/migrate`** — Run database migrations (AutoMigrate)
+- **`go run ./cmd/seed`** — Run database seeder
 
 ---
 
@@ -449,28 +454,35 @@ Hot-reload via `air` (`.air.toml`): watches `cmd/` + `internal/`, rebuilds to `.
 ### Build & Deploy
 
 ```bash
-# SPA build
-cd web && pnpm install && pnpm build
+# Deploy via Docker (SPA + Go build di dalam multi-stage build)
+docker build -t portfolio -f build/package/Dockerfile .
 
-# Go build
-cd ..
-go build -o app ./cmd/app
-
-# Run
-./app
+# Run container
+docker run -itd \
+  --name portfolio \
+  --restart always \
+  -p 8000:8000 \
+  --network proxy \
+  --env-file /path/to/.env \
+  portfolio
 ```
+
+Atau via `scripts/deploy.sh` yang menjalankan `docker build` + `docker run` + cleanup.
 
 ### main.go production logic (`cmd/app/main.go`)
 
 ```go
+// Global error handler (ValidationError, fiber.Error, generic)
+app := fiber.New(fiber.Config{
+    ErrorHandler: provider.NewErrorHandler(),
+})
+
 // Static assets (CSS/JS from Vite build)
 app.Static("/", "public")
 
 // SPA catch-all — serve index.html for all non-API paths
 app.Get("/api/*", func(c *fiber.Ctx) error {
-    return c.Status(fiber.StatusNotFound).JSON(fiber.Map{
-        "message": "API endpoint not found",
-    })
+    return c.Status(fiber.StatusNotFound).JSON(helper.Res.Error("API endpoint not found", nil))
 })
 app.Get("/*", func(c *fiber.Ctx) error {
     return c.SendFile("public/index.html")
@@ -479,12 +491,16 @@ app.Get("/*", func(c *fiber.Ctx) error {
 
 ### Docker
 
-Multi-stage build:
+Multi-stage build (`build/package/Dockerfile`):
 ```
-Stage 1 (node:20-alpine) → pnpm install && pnpm build (from web/) → public/build/
-Stage 2 (golang:1.22-alpine) → go build ./cmd/app → app
-Stage 3 (alpine) → copy app + public/build/ → ./app (port 8000)
+Stage 1 (node:24-alpine) → npm install && npm build (from web/) → public/build/
+Stage 2 (golang:1.25-alpine) → go build ./cmd/app → app
+Stage 3 (alpine:3.19) → copy app + public/ (index.html, favicon, dll) + public/build/ → ./app (port 8000)
 ```
+
+SPA build mendukung `ARG VITE_API_URL` / `VITE_APP_URL` untuk env vars yang di-inject via `--build-arg`.
+
+`.dockerignore` tersedia untuk memperkecil build context (ignore node_modules, tmp, .git, dll).
 
 ### SPA Development Mode
 
@@ -499,6 +515,28 @@ When `APP_ENV=local`, SPA runs separately on `:3000` (Vite dev server). Producti
 | **Link navigation** | `<a href="/path" use:link>` or programmatic `push(path)` |
 | **Params** | `{ path: '/user/:id' }` → `routeParams.id` in component |
 | **Catch-all** | `'*': NotFound` in route map for 404 pages |
+
+### GitHub Actions Deploy
+
+Workflow: `.github/workflows/deploy.yml`
+
+Trigger: push ke `master` atau manual `workflow_dispatch`.
+
+```yaml
+# Single job deploy:
+# 1. SSH ke VPS
+# 2. cd /root/docker/go-fiber-svelte
+# 3. git reset --hard + git pull
+# 4. cd web && pnpm i --prod && cd ..
+# 5. chmod +x & bash ./scripts/deploy.sh
+```
+
+Deploy script (`scripts/deploy.sh`):
+1. `source .env` (baca VITE_* vars)
+2. `docker build --build-arg VITE_* -t portfolio -f build/package/Dockerfile .`
+3. Stop + remove container lama
+4. `docker run --env-file .env ... portfolio`
+5. `docker image prune -f`
 
 ### API Documentation (OpenAPI / Scalar)
 
