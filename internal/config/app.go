@@ -1,7 +1,6 @@
 package config
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/joho/godotenv"
@@ -28,10 +27,7 @@ func setup() {
 }
 
 func InitConfigApp() {
-	if err := godotenv.Load(".env"); err != nil {
-		fmt.Printf("Error loading .env file: %v \n\n", err.Error())
-		os.Exit(1)
-	}
+	godotenv.Load(".env")
 	setup()
 }
 
