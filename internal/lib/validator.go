@@ -14,19 +14,28 @@ var Validate validate
 
 type validate struct{}
 
-func (validate) Check(c *fiber.Ctx, input any) (err error, isOk bool) {
+type ValidationError struct {
+	Message string
+	Errors  map[string]string
+}
+
+func (e *ValidationError) Error() string {
+	return e.Message
+}
+
+func (validate) Check(c *fiber.Ctx, input any) error {
 	if err := c.BodyParser(input); err != nil {
-		return generateError(c, err), false
+		return generateError(err)
 	}
 
 	if err := config.Validate.Struct(input); err != nil {
-		return generateError(c, err), false
+		return generateError(err)
 	}
 
-	return nil, true
+	return nil
 }
 
-func generateError(c *fiber.Ctx, err error) error {
+func generateError(err error) *ValidationError {
 	newErrors := map[string]string{}
 	msg := "Invalid data"
 
@@ -49,8 +58,5 @@ func generateError(c *fiber.Ctx, err error) error {
 		}
 	}
 
-	return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-		"message": msg,
-		"errors":  newErrors,
-	})
+	return &ValidationError{Message: msg, Errors: newErrors}
 }

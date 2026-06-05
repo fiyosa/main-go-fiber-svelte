@@ -18,11 +18,7 @@ func main() {
 	bootstrap.Init()
 
 	app := fiber.New(fiber.Config{
-		ErrorHandler: func(c *fiber.Ctx, err error) error {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
-				"message": err.Error(),
-			})
-		},
+		ErrorHandler: provider.NewErrorHandler(),
 	})
 
 	app.Use(recover.New())
