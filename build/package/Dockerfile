@@ -5,7 +5,7 @@ ARG VITE_API_URL
 ENV VITE_API_URL=$VITE_API_URL
 ARG VITE_APP_URL
 ENV VITE_APP_URL=$VITE_APP_URL
-RUN pnpm install --frozen-lockfile && pnpm build && rm -rf node_modules
+RUN npm install && npm run build && rm -rf node_modules
 
 FROM golang:1.22-alpine AS go-builder
 WORKDIR /app
