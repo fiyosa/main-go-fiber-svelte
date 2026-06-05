@@ -7,7 +7,7 @@ ARG VITE_APP_URL
 ENV VITE_APP_URL=$VITE_APP_URL
 RUN npm install && npm run build && rm -rf node_modules
 
-FROM golang:1.22-alpine AS go-builder
+FROM golang:1.25-alpine AS go-builder
 WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
