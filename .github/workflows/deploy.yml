@@ -4,27 +4,9 @@ on:
   push:
     branches:
       - master
-  workflow_dispatch:
 
 jobs:
-  prepare:
-    if: github.event_name == 'workflow_dispatch'
-    runs-on: ubuntu-latest
-    steps:
-      - name: Install Production Dependencies
-        uses: appleboy/ssh-action@v1.0.3
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          port: ${{ secrets.VPS_PORT }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          script: |
-            cd /root/docker/portfolio
-            pnpm i --prod
-
   deploy:
-    needs: prepare
-    if: always() && (needs.prepare.result == 'success' || needs.prepare.result == 'skipped')
     runs-on: ubuntu-latest
     steps:
       - name: Deploy ke VPS
@@ -38,6 +20,5 @@ jobs:
             cd /root/docker/portfolio
             git reset --hard
             git pull
-            chmod +x deploy.sh
+            chmod +x ./scripts/deploy.sh
             bash ./deploy.sh
-            git reset --hard
