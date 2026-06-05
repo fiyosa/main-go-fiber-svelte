@@ -13,6 +13,7 @@ import (
 )
 
 func LoginRepository(c *fiber.Ctx) error {
+	lib.Log.Info("coming")
 	req := new(auth_request.LoginRequest)
 
 	if err := lib.Validate.Check(c, req); err != nil {
