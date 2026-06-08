@@ -4,6 +4,7 @@ import (
 	"go-fiber-svelte/internal/bootstrap"
 	"go-fiber-svelte/internal/config"
 	"go-fiber-svelte/internal/helper"
+	"go-fiber-svelte/internal/lib"
 	"go-fiber-svelte/internal/provider"
 	"go-fiber-svelte/internal/routes"
 
@@ -39,5 +40,6 @@ func main() {
 	if port == "" {
 		port = "8000"
 	}
+	lib.Log.Info("Server started", "fiber", ":"+port)
 	app.Listen(":" + port)
 }
