@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"encoding/json"
 	"os"
+	"strconv"
 	"strings"
 
 	"go-fiber-svelte/internal/helper"
@@ -11,16 +12,18 @@ import (
 	"github.com/gofiber/fiber/v2"
 )
 
-type logEntry struct {
+type LogEntry struct {
 	Level   string `json:"level"`
 	Time    string `json:"time"`
 	Message string `json:"message"`
 }
 
-type logDetail struct {
+type LogDetailResponse struct {
 	Name  string     `json:"name"`
 	Total int        `json:"total"`
-	Logs  []logEntry `json:"logs"`
+	Logs  []LogEntry `json:"logs"`
+	Page  int        `json:"page"`
+	Limit int        `json:"limit"`
 }
 
 func LogDetailRepository(c *fiber.Ctx) error {
@@ -35,31 +38,69 @@ func LogDetailRepository(c *fiber.Ctx) error {
 	}
 	defer file.Close()
 
-	var entries []logEntry
+	levels := c.Query("levels")
+	search := strings.ToLower(c.Query("search"))
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+	limit, _ := strconv.Atoi(c.Query("limit", "50"))
+
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 || limit > 500 {
+		limit = 50
+	}
+
+	var levelSet map[string]bool
+	if levels != "" {
+		levelSet = make(map[string]bool)
+		for _, l := range strings.Split(levels, ",") {
+			levelSet[strings.TrimSpace(l)] = true
+		}
+	}
+
+	allEntries := make([]LogEntry, 0)
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" {
 			continue
 		}
-		var entry logEntry
+		var entry LogEntry
 		if err := json.Unmarshal([]byte(line), &entry); err != nil {
 			continue
 		}
-		entries = append(entries, entry)
+		if levelSet != nil && !levelSet[entry.Level] {
+			continue
+		}
+		if search != "" && !strings.Contains(strings.ToLower(entry.Message), search) && !strings.Contains(strings.ToLower(entry.Level), search) {
+			continue
+		}
+		allEntries = append(allEntries, entry)
 	}
 
 	if err := scanner.Err(); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(helper.Res.Error("Failed to read log file", nil))
 	}
 
-	for i, j := 0, len(entries)-1; i < j; i, j = i+1, j-1 {
-		entries[i], entries[j] = entries[j], entries[i]
+	for i, j := 0, len(allEntries)-1; i < j; i, j = i+1, j-1 {
+		allEntries[i], allEntries[j] = allEntries[j], allEntries[i]
 	}
 
-	return c.JSON(helper.Res.SuccessData(logDetail{
+	total := len(allEntries)
+	start := (page - 1) * limit
+	end := start + limit
+	if start > total {
+		start = total
+	}
+	if end > total {
+		end = total
+	}
+
+	return c.JSON(helper.Res.SuccessData(LogDetailResponse{
 		Name:  filename,
-		Total: len(entries),
-		Logs:  entries,
+		Total: total,
+		Logs:  allEntries[start:end],
+		Page:  page,
+		Limit: limit,
 	}, "Log detail retrieved successfully"))
 }
