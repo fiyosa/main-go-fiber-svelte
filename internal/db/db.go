@@ -48,4 +48,5 @@ func Init() {
 	if err != nil {
 		panic("failed to connect database: " + err.Error())
 	}
+	lib.Log.Info("Database connected", "db")
 }
