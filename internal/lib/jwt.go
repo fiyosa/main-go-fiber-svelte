@@ -29,7 +29,7 @@ func (j *jwtLib) Create(userId int) (string, error) {
 }
 
 func (j *jwtLib) Verify(tokenStr string) (jwt.MapClaims, error) {
-	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.Parse(tokenStr, func(token *jwt.Token) (any, error) {
 		return []byte(j.secret), nil
 	})
 	if err != nil {

@@ -3,8 +3,8 @@ package policy_repository
 import (
 	"go-fiber-svelte/internal/db"
 	"go-fiber-svelte/internal/db/models"
+	"go-fiber-svelte/internal/http/request/policy_request"
 	"go-fiber-svelte/internal/lang"
-	"go-fiber-svelte/internal/request/policy_request"
 
 	"github.com/gofiber/fiber/v2"
 )

@@ -5,9 +5,9 @@ import (
 	"go-fiber-svelte/internal/db"
 	"go-fiber-svelte/internal/db/models"
 	"go-fiber-svelte/internal/helper"
+	"go-fiber-svelte/internal/http/request/auth_request"
 	"go-fiber-svelte/internal/lang"
 	"go-fiber-svelte/internal/lib"
-	"go-fiber-svelte/internal/request/auth_request"
 
 	"github.com/gofiber/fiber/v2"
 )

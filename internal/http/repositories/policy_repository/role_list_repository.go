@@ -4,8 +4,8 @@ import (
 	"go-fiber-svelte/internal/db"
 	"go-fiber-svelte/internal/db/models"
 	"go-fiber-svelte/internal/helper"
+	"go-fiber-svelte/internal/http/resources/policy_resource"
 	"go-fiber-svelte/internal/lang"
-	"go-fiber-svelte/internal/resources/policy_resource"
 
 	"github.com/gofiber/fiber/v2"
 )

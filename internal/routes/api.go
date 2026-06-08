@@ -1,7 +1,7 @@
 package routes
 
 import (
-	"go-fiber-svelte/internal/controllers"
+	"go-fiber-svelte/internal/http/controllers"
 	"go-fiber-svelte/internal/middleware"
 
 	"github.com/gofiber/fiber/v2"

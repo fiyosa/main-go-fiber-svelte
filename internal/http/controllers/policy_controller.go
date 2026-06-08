@@ -1,7 +1,7 @@
 package controllers
 
 import (
-	"go-fiber-svelte/internal/repositories/policy_repository"
+	"go-fiber-svelte/internal/http/repositories/policy_repository"
 
 	"github.com/gofiber/fiber/v2"
 )

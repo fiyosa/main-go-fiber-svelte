@@ -16,7 +16,7 @@ var RUN *gorm.DB
 
 type dbWriter struct{}
 
-func (dbWriter) Printf(format string, args ...interface{}) {
+func (dbWriter) Printf(format string, args ...any) {
 	msg := fmt.Sprintf(format, args...)
 	parts := strings.SplitN(msg, "\n", 2)
 	if len(parts) > 1 {

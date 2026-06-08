@@ -1,4 +1,4 @@
-package auth
+package auth_resource
 
 import (
 	"go-fiber-svelte/internal/db/models"
@@ -6,11 +6,11 @@ import (
 )
 
 type UserResource struct {
-	ID        string `json:"id"`
-	Email     string `json:"email"`
-	Username  string `json:"username"`
+	ID        string         `json:"id"`
+	Email     string         `json:"email"`
+	Username  string         `json:"username"`
 	Roles     []RoleResource `json:"roles,omitempty"`
-	CreatedAt string `json:"created_at"`
+	CreatedAt string         `json:"created_at"`
 }
 
 type RoleResource struct {

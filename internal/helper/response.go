@@ -7,10 +7,10 @@ var Res res
 type res struct{}
 
 type Response struct {
-	Message string      `json:"message"`
-	Data    interface{} `json:"data,omitempty"`
-	Errors  interface{} `json:"errors,omitempty"`
-	Meta    *Meta       `json:"meta,omitempty"`
+	Message string `json:"message"`
+	Data    any    `json:"data,omitempty"`
+	Errors  any    `json:"errors,omitempty"`
+	Meta    *Meta  `json:"meta,omitempty"`
 }
 
 type Meta struct {
@@ -24,15 +24,15 @@ func (res) Success(msg string, status ...int) *Response {
 	return &Response{Message: msg}
 }
 
-func (res) SuccessData(data interface{}, msg string, status ...int) *Response {
+func (res) SuccessData(data any, msg string, status ...int) *Response {
 	return &Response{Message: msg, Data: data}
 }
 
-func (res) Error(msg string, errors interface{}, status ...int) *Response {
+func (res) Error(msg string, errors any, status ...int) *Response {
 	return &Response{Message: msg, Errors: errors}
 }
 
-func (res) Paginate(data interface{}, meta *Meta, msg string) *Response {
+func (res) Paginate(data any, meta *Meta, msg string) *Response {
 	return &Response{Message: msg, Data: data, Meta: meta}
 }
 

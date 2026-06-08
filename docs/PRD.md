@@ -16,16 +16,16 @@
 
 Project follows [golang-standards/project-layout](https://github.com/golang-standards/project-layout) conventions:
 
-| Directory | Purpose |
-|-----------|---------|
-| `cmd/` | Main applications — one subdirectory per binary (`cmd/app`, `cmd/migrate`, `cmd/seed`). Each has a small `main.go` that imports from `internal/`. |
-| `internal/` | Private application code — **not importable by external projects** (enforced by Go compiler). All core logic lives here. |
-| `web/` | Web application components — Vite + Svelte 5 SPA frontend. |
-| `public/` | Build output and static assets served by Go Fiber. |
-| `build/` | Packaging — Dockerfile in `build/package/`. |
-| — | `.env.example` at project root. |
-| `docs/` | Project documentation. |
-| `scripts/` | Build/deploy scripts. |
+| Directory   | Purpose                                                                                                                                           |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `cmd/`      | Main applications — one subdirectory per binary (`cmd/app`, `cmd/migrate`, `cmd/seed`). Each has a small `main.go` that imports from `internal/`. |
+| `internal/` | Private application code — **not importable by external projects** (enforced by Go compiler). All core logic lives here.                          |
+| `web/`      | Web application components — Vite + Svelte 5 SPA frontend.                                                                                        |
+| `public/`   | Build output and static assets served by Go Fiber.                                                                                                |
+| `build/`    | Packaging — Dockerfile in `build/package/`.                                                                                                       |
+| —           | `.env.example` at project root.                                                                                                                   |
+| `docs/`     | Project documentation.                                                                                                                            |
+| `scripts/`  | Build/deploy scripts.                                                                                                                             |
 
 > **Key rule:** No `src/` directory at the project root. Go's workspace (`$GOPATH`) has its own `src/`, but project-level `src/` is a Java anti-pattern.
 
@@ -50,11 +50,33 @@ Project follows [golang-standards/project-layout](https://github.com/golang-stan
 │   ├── config/
 │   │   └── config.go            # Load .env → Config struct
 │   │
-│   ├── controllers/             # Thin HTTP handlers
-│   │   ├── auth_controller.go
-│   │   ├── guest_controller.go
-│   │   ├── doc_controller.go
-│   │   └── policy_controller.go
+│   ├── http/                    # HTTP layer
+│   │   ├── controllers/         # Thin HTTP handlers
+│   │   │   ├── auth_controller.go
+│   │   │   ├── guest_controller.go
+│   │   │   ├── doc_controller.go
+│   │   │   └── policy_controller.go
+│   │   ├── repositories/        # Business logic (1 file per endpoint)
+│   │   │   ├── auth/
+│   │   │   │   ├── login_repository.go
+│   │   │   │   ├── logout_repository.go
+│   │   │   │   └── user_repository.go
+│   │   │   └── policy/
+│   │   │       ├── role_list_repository.go
+│   │   │       ├── permission_list_repository.go
+│   │   │       ├── permission_store_repository.go
+│   │   │       └── permission_destroy_repository.go
+│   │   ├── request/             # Struct validasi (go-playground/validator)
+│   │   │   ├── auth/
+│   │   │   │   └── login_request.go
+│   │   │   └── policy/
+│   │   │       └── permission_store_request.go
+│   │   └── resources/           # Data transformers (encodeId tiap field id)
+│   │       ├── auth/
+│   │       │   └── user_resource.go
+│   │       └── policy/
+│   │           ├── role_list_resource.go
+│   │           └── permission_resource.go
 │   │
 │   ├── db/                      # Database layer (GORM)
 │   │   ├── db.go                # Koneksi & init GORM (PostgreSQL)
@@ -95,30 +117,6 @@ Project follows [golang-standards/project-layout](https://github.com/golang-stan
 │   │   ├── error_provider.go    # Global error handler (ValidationError, fiber.Error)
 │   │   ├── auth_provider.go     # RBAC: user_has_roles → role_has_permissions
 │   │   └── app_provider.go      # Middleware registration
-│   │
-│   ├── repositories/            # Business logic (1 file per endpoint)
-│   │   ├── auth/
-│   │   │   ├── login_repository.go
-│   │   │   ├── logout_repository.go
-│   │   │   └── user_repository.go
-│   │   └── policy/
-│   │       ├── role_list_repository.go
-│   │       ├── permission_list_repository.go
-│   │       ├── permission_store_repository.go
-│   │       └── permission_destroy_repository.go
-│   │
-│   ├── request/                 # Struct validasi (go-playground/validator)
-│   │   ├── auth/
-│   │   │   └── login_request.go
-│   │   └── policy/
-│   │       └── permission_store_request.go
-│   │
-│   ├── resources/               # Data transformers (encodeId tiap field id)
-│   │   ├── auth/
-│   │   │   └── user_resource.go
-│   │   └── policy/
-│   │       ├── role_list_resource.go
-│   │       └── permission_resource.go
 │   │
 │   ├── routes/
 │   │   └── api.go               # Route definitions & handler mapping
@@ -211,9 +209,9 @@ HTTP Request
   → Fiber router (internal/routes/api.go)
     → Middleware chain (auth, hash)
       → Policy check (RBAC via authProvider)
-        → Controller
-          → Repository (business logic + GORM queries)
-            → Resource (transform response)
+        → HTTP Controller (internal/http/controllers/)
+          → HTTP Repository (internal/http/repositories/)
+            → Resource (internal/http/resources/)
               → Helper response (JSON)
 ```
 
@@ -258,6 +256,7 @@ All from `internal/helper/response.go`:
 Semua response API menggunakan `helper.Res.*` — lihat penggunaan di `controllers/`, `repositories/`, dan `provider/error_provider.go`.
 
 **Standard response format:**
+
 ```json
 {
   "message": "...",
@@ -275,23 +274,25 @@ All tables use `bigserial` PKs and GORM with relations.
 
 ### Tables:
 
-| Table | Columns | Relations |
-|-------|---------|-----------|
-| `users` | id, email, username, password, created_at, updated_at, deleted_at | → auths, user_details, user_has_roles |
-| `user_details` | id, user_id, first_name, last_name, created_at, updated_at | → users |
-| `auths` | id, user_id, token, revoke, ip, user_agent, created_at, updated_at | → users |
-| `roles` | id, name, notes, created_at, updated_at, deleted_at | → user_has_roles, role_has_permissions |
-| `permissions` | id, name, notes, created_at, updated_at, deleted_at | → role_has_permissions |
-| `role_has_permissions` | role_id, permission_id (composite PK) | → roles, permissions |
-| `user_has_roles` | user_id, role_id (composite PK) | → users, roles |
+| Table                  | Columns                                                            | Relations                              |
+| ---------------------- | ------------------------------------------------------------------ | -------------------------------------- |
+| `users`                | id, email, username, password, created_at, updated_at, deleted_at  | → auths, user_details, user_has_roles  |
+| `user_details`         | id, user_id, first_name, last_name, created_at, updated_at         | → users                                |
+| `auths`                | id, user_id, token, revoke, ip, user_agent, created_at, updated_at | → users                                |
+| `roles`                | id, name, notes, created_at, updated_at, deleted_at                | → user_has_roles, role_has_permissions |
+| `permissions`          | id, name, notes, created_at, updated_at, deleted_at                | → role_has_permissions                 |
+| `role_has_permissions` | role_id, permission_id (composite PK)                              | → roles, permissions                   |
+| `user_has_roles`       | user_id, role_id (composite PK)                                    | → users, roles                         |
 
 ### Key relationships:
+
 - User M:N Role via `user_has_roles`
 - Role M:N Permission via `role_has_permissions`
 - All junction tables use composite primary keys
 - `deleted_at` used for soft-delete on users, roles, permissions
 
 ### GORM client:
+
 ```go
 // internal/db/db.go
 db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
@@ -303,19 +304,19 @@ db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
 
 ## 5. API Endpoints
 
-| Method | Path | Auth | Policy | Controller | Description |
-|--------|------|------|--------|------------|-------------|
-| GET | `/api/openapi.json` | - | - | `docController.openapi` | OpenAPI 3.0 spec (dynamic) |
-| GET | `/api/docs` | - | - | `docController.docs` | Scalar API docs UI |
-| POST | `/api/auth/login` | - | - | `authController.login` | Login, HTTP-only cookie |
-| DELETE | `/api/auth/logout` | auth | - | `authController.logout` | Revoke token + clear cookie |
-| GET | `/api/auth/user` | auth | - | `authController.user` | Current user info |
-| GET | `/api/policy/role` | auth | - | `policyController.roleList` | List roles with permissions |
-| GET | `/api/policy/permission` | auth | - | `policyController.permissionList` | List permissions |
-| POST | `/api/policy/permission` | auth | - | `policyController.permissionStore` | Create permission |
-| DELETE | `/api/policy/permission/:id` | auth | - | `policyController.permissionDestroy` | Delete permission (soft) |
-| GET | `/api/guest/ping` | - | - | `guestController.ping` | Health check |
-| * | `/api/*` | - | - | 404 JSON | Fallback for invalid API paths |
+| Method | Path                         | Auth | Policy | Controller                           | Description                    |
+| ------ | ---------------------------- | ---- | ------ | ------------------------------------ | ------------------------------ |
+| GET    | `/api/openapi.json`          | -    | -      | `docController.openapi`              | OpenAPI 3.0 spec (dynamic)     |
+| GET    | `/api/docs`                  | -    | -      | `docController.docs`                 | Scalar API docs UI             |
+| POST   | `/api/auth/login`            | -    | -      | `authController.login`               | Login, HTTP-only cookie        |
+| DELETE | `/api/auth/logout`           | auth | -      | `authController.logout`              | Revoke token + clear cookie    |
+| GET    | `/api/auth/user`             | auth | -      | `authController.user`                | Current user info              |
+| GET    | `/api/policy/role`           | auth | -      | `policyController.roleList`          | List roles with permissions    |
+| GET    | `/api/policy/permission`     | auth | -      | `policyController.permissionList`    | List permissions               |
+| POST   | `/api/policy/permission`     | auth | -      | `policyController.permissionStore`   | Create permission              |
+| DELETE | `/api/policy/permission/:id` | auth | -      | `policyController.permissionDestroy` | Delete permission (soft)       |
+| GET    | `/api/guest/ping`            | -    | -      | `guestController.ping`               | Health check                   |
+| \*     | `/api/*`                     | -    | -      | 404 JSON                             | Fallback for invalid API paths |
 
 ---
 
@@ -323,33 +324,33 @@ db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
 
 ### Go Libraries (`internal/lib/`):
 
-| File | Exports | Purpose |
-|------|---------|---------|
-| `hash.go` | `Generate`, `Verify`, `EncodeId`, `DecodeId` | bcrypt hashing + Hashids encoding |
-| `jwt.go` | `Create`, `Verify` | JWT sign/verify with APP_SECRET |
-| `logger.go` | `Info`, `Error`, `Warn`, `Debug` | Zerolog logging |
-| `validator.go` | `Validate`, `ValidateRequest` | go-playground/validator wrapper |
+| File           | Exports                                      | Purpose                           |
+| -------------- | -------------------------------------------- | --------------------------------- |
+| `hash.go`      | `Generate`, `Verify`, `EncodeId`, `DecodeId` | bcrypt hashing + Hashids encoding |
+| `jwt.go`       | `Create`, `Verify`                           | JWT sign/verify with APP_SECRET   |
+| `logger.go`    | `Info`, `Error`, `Warn`, `Debug`             | Zerolog logging                   |
+| `validator.go` | `Validate`, `ValidateRequest`                | go-playground/validator wrapper   |
 
 ### Go Utilities (`internal/utils/`):
 
-| File | Exports | Purpose |
-|------|---------|---------|
-| `date.go` | `Now`, `FormatByDate`, `FormatByStr` | Date formatting |
-| `uuid.go` | `Create`, `Verify` | UUID v4 generation & validation |
+| File      | Exports                              | Purpose                         |
+| --------- | ------------------------------------ | ------------------------------- |
+| `date.go` | `Now`, `FormatByDate`, `FormatByStr` | Date formatting                 |
+| `uuid.go` | `Create`, `Verify`                   | UUID v4 generation & validation |
 
 ### Frontend Dependencies (SPA):
 
-| Package | Version | Purpose |
-|---------|---------|---------|
-| `svelte` | ^5.55.5 | UI framework (runes-based) |
-| `@keenmate/svelte-spa-router` | ^5.1.0 | SPA router (history mode with `use:link`) |
-| `@tailwindcss/vite` | ^4.3.0 | Tailwind CSS v4 Vite plugin |
-| `tailwindcss` | ^4.3.0 | Utility-first CSS |
-| `vite` | ^8.0.12 | Build tool |
-| `@sveltejs/vite-plugin-svelte` | ^7.1.2 | Svelte Vite integration |
-| `prettier` | ^3.8.3 | Code formatter |
-| `prettier-plugin-svelte` | ^4.1.0 | Svelte Prettier plugin |
-| `prettier-plugin-tailwindcss` | ^0.8.0 | Tailwind class sorting |
+| Package                        | Version | Purpose                                   |
+| ------------------------------ | ------- | ----------------------------------------- |
+| `svelte`                       | ^5.55.5 | UI framework (runes-based)                |
+| `@keenmate/svelte-spa-router`  | ^5.1.0  | SPA router (history mode with `use:link`) |
+| `@tailwindcss/vite`            | ^4.3.0  | Tailwind CSS v4 Vite plugin               |
+| `tailwindcss`                  | ^4.3.0  | Utility-first CSS                         |
+| `vite`                         | ^8.0.12 | Build tool                                |
+| `@sveltejs/vite-plugin-svelte` | ^7.1.2  | Svelte Vite integration                   |
+| `prettier`                     | ^3.8.3  | Code formatter                            |
+| `prettier-plugin-svelte`       | ^4.1.0  | Svelte Prettier plugin                    |
+| `prettier-plugin-tailwindcss`  | ^0.8.0  | Tailwind class sorting                    |
 
 ---
 
@@ -357,25 +358,36 @@ db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
 
 ### Environment Variables (.env):
 
-| Variable | Example | Scope |
-|----------|---------|-------|
-| `APP_ENV` | `local` | Public |
-| `APP_LOCALE` | `en` | Public |
-| `APP_SECRET` | `secret` | Secret |
-| `APP_JWT_DURATION` | `1d` | Public |
-| `DB_URL` | `postgresql://...` | Secret |
-| `API_URL` | `http://localhost:8000` | Public |
-| `PORT` | `8000` | Public |
+| Variable           | Example                 | Scope  |
+| ------------------ | ----------------------- | ------ |
+| `APP_ENV`          | `local`                 | Public |
+| `APP_LOCALE`       | `en`                    | Public |
+| `APP_SECRET`       | `secret`                | Secret |
+| `APP_JWT_DURATION` | `1d`                    | Public |
+| `DB_URL`           | `postgresql://...`      | Secret |
+| `API_URL`          | `http://localhost:8000` | Public |
+| `PORT`             | `8000`                  | Public |
+| `APP_LOG`          | `true`                  | Public |
 
 Config loaded via `internal/config/config.go` (using `github.com/joho/godotenv` + `os.Getenv`). Jika file `.env` tidak ditemukan (misal di container), fallback ke env vars dari Docker `--env-file`.
+
+### Logger (`internal/lib/logger.go`)
+
+- Logging dikontrol oleh `APP_LOG` (default `true`)
+- `APP_LOG=false` → `zerolog.Nop()` (no-op, tidak ada file atau stdout)
+- `APP_LOG=true` → tulis log ke file `./logs/{name}_YYYY-MM-DD.log`
+- Saat ini hanya ada 1 pemanggil: `internal/db/db.go` (GORM query log, name: `"db"`)
+- Di production (`APP_ENV != "local"`), GORM log level = `Warn`, jadi query normal tidak tercatat — hanya slow query & error
+- Folder `./logs/` terbuat otomatis saat `lib.Log.Info/Error` pertama dipanggil
 
 ---
 
 ## 8. Internationalization
 
 Custom i18n system at `internal/lang/`:
+
 - `t._("key")` → returns translated string
-- `t._("key", map[string]interface{}{"arg": "value"})` → replaces `:arg` in string
+- `t._("key", map[string]any{"arg": "value"})` → replaces `:arg` in string
 - Currently only `en` locale exists
 - `APP_LOCALE` controls active language
 
@@ -385,10 +397,11 @@ Custom i18n system at `internal/lang/`:
 
 ### Go:
 
-- **Controllers:** Exported functions that delegate to repositories. For multiple methods on same resource, use a struct grouping or separate functions. Barrel pattern via package-level exports.
-- **Repositories:** Exported functions; **1 file per API endpoint** with specific name (`RoleListRepository`, `PermissionStoreRepository`). Barrel via `index.go` per subfolder.
-- **Resources:** Exported functions `Single()` dan `Collection()`, bukan struct method. Setiap field `id` wajib di-encode dengan `hash.EncodeId()`. Barrel via `index.go` per subfolder.
-- **Request schemas:** Struct validation in `src/request/`, barrel via `index.go` per subfolder.
+- **HTTP layer** berada di `internal/http/`:
+  - **Controllers:** `internal/http/controllers/` — exported functions that delegate to repositories.
+  - **Repositories:** `internal/http/repositories/` — exported functions; **1 file per API endpoint** with specific name (`RoleListRepository`, `PermissionStoreRepository`).
+  - **Resources:** `internal/http/resources/` — exported functions `Single()` dan `Collection()`, bukan struct method. Setiap field `id` wajib di-encode dengan `hash.EncodeId()`.
+  - **Request schemas:** `internal/http/request/` — struct validation via go-playground/validator.
 - **Middleware:** Exported function + registered via `appProvider`.
 - **Handlers:** Return `c.JSON()` responses via helper functions.
 
@@ -416,26 +429,26 @@ Custom i18n system at `internal/lang/`:
 
 ## 10. NPM Scripts (SPA)
 
-| Script | Command |
-|--------|---------|
-| `dev` | `vite --host` (port 5173 / configured) |
-| `build` | `vite build` → output `../../public/build/` |
-| `preview` | `vite preview --host` |
-| `check` | `svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json` |
-| `format` | `prettier --write 'src/**/*.{svelte,ts,css}'` |
+| Script    | Command                                                                    |
+| --------- | -------------------------------------------------------------------------- |
+| `dev`     | `vite --host` (port 5173 / configured)                                     |
+| `build`   | `vite build` → output `../../public/build/`                                |
+| `preview` | `vite preview --host`                                                      |
+| `check`   | `svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json` |
+| `format`  | `prettier --write 'src/**/*.{svelte,ts,css}'`                              |
 
 ---
 
 ## 11. Go Scripts
 
-| Script | Command | Port |
-|--------|---------|------|
-| `dev` | `go run ./cmd/app` / `air` (hot-reload) | 8000 |
-| `build` | `go build -o ./tmp/app ./cmd/app` | - |
-| `run` | `./tmp/app` | 8000 |
-| `migrate` | `go run ./cmd/migrate` | - |
-| `lint` | `golangci-lint run ./...` | - |
-| `test` | `go test ./...` | - |
+| Script    | Command                                 | Port |
+| --------- | --------------------------------------- | ---- |
+| `dev`     | `go run ./cmd/app` / `air` (hot-reload) | 8000 |
+| `build`   | `go build -o ./tmp/app ./cmd/app`       | -    |
+| `run`     | `./tmp/app`                             | 8000 |
+| `migrate` | `go run ./cmd/migrate`                  | -    |
+| `lint`    | `golangci-lint run ./...`               | -    |
+| `test`    | `go test ./...`                         | -    |
 
 Hot-reload via `air` (`.air.toml`): watches `cmd/` + `internal/`, rebuilds to `./tmp/main.exe` from `./cmd/app`.
 
@@ -492,6 +505,7 @@ app.Get("/*", func(c *fiber.Ctx) error {
 ### Docker
 
 Multi-stage build (`build/package/Dockerfile`):
+
 ```
 Stage 1 (node:24-alpine) → npm install && npm build (from web/) → public/build/
 Stage 2 (golang:1.25-alpine) → go build ./cmd/app → app
@@ -508,13 +522,13 @@ When `APP_ENV=local`, SPA runs separately on `:3000` (Vite dev server). Producti
 
 ### SPA Router
 
-| Package | `@keenmate/svelte-spa-router` (fork with Svelte 5 runes) |
-|---------|----------|
-| **Mode** | History mode via `setHashRoutingEnabled(false)` + `setBasePath('/')` in `main.ts` |
-| **Hash redirect** | `/#/xyz` → `history.replaceState` to `/xyz` on init |
-| **Link navigation** | `<a href="/path" use:link>` or programmatic `push(path)` |
-| **Params** | `{ path: '/user/:id' }` → `routeParams.id` in component |
-| **Catch-all** | `'*': NotFound` in route map for 404 pages |
+| Package             | `@keenmate/svelte-spa-router` (fork with Svelte 5 runes)                          |
+| ------------------- | --------------------------------------------------------------------------------- |
+| **Mode**            | History mode via `setHashRoutingEnabled(false)` + `setBasePath('/')` in `main.ts` |
+| **Hash redirect**   | `/#/xyz` → `history.replaceState` to `/xyz` on init                               |
+| **Link navigation** | `<a href="/path" use:link>` or programmatic `push(path)`                          |
+| **Params**          | `{ path: '/user/:id' }` → `routeParams.id` in component                           |
+| **Catch-all**       | `'*': NotFound` in route map for 404 pages                                        |
 
 ### GitHub Actions Deploy
 
@@ -532,7 +546,8 @@ Trigger: push ke `master` atau manual `workflow_dispatch`.
 ```
 
 Deploy script (`scripts/deploy.sh`):
-1. `source .env` (baca VITE_* vars)
+
+1. `source .env` (baca VITE\_\* vars)
 2. `docker build --build-arg VITE_* -t portfolio -f build/package/Dockerfile .`
 3. Stop + remove container lama
 4. `docker run --env-file .env ... portfolio`

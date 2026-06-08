@@ -70,7 +70,7 @@ func (w *logWriter) Write(p []byte) (int, error) {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 
-	var raw map[string]interface{}
+	var raw map[string]any
 	if err := json.Unmarshal(p, &raw); err != nil {
 		return 0, err
 	}
