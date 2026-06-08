@@ -1,8 +1,6 @@
 package main
 
 import (
-	"strings"
-
 	"go-fiber-svelte/internal/bootstrap"
 	"go-fiber-svelte/internal/config"
 	"go-fiber-svelte/internal/helper"
@@ -24,11 +22,7 @@ func main() {
 
 	app.Use(recover.New())
 	app.Use(fiberLogger.New())
-	app.Use(cors.New(cors.Config{
-		AllowOrigins: "*",
-		AllowMethods: strings.Join([]string{fiber.MethodGet, fiber.MethodPost, fiber.MethodPut, fiber.MethodDelete, fiber.MethodOptions}, ","),
-		AllowHeaders: "Content-Type, Authorization",
-	}))
+	app.Use(cors.New(config.CORSConfig()))
 
 	provider.RegisterMiddleware(app)
 	routes.RegisterAPI(app)

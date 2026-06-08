@@ -13,6 +13,7 @@ var (
 	APP_JWT_DURATION string
 	DB_URL           string
 	API_URL          string
+	APP_WEB_URL      string
 	APP_PORT         string
 	APP_LOG          bool
 )
@@ -23,6 +24,7 @@ func setup() {
 	APP_SECRET = getEnv("APP_SECRET", "secret")
 	APP_JWT_DURATION = getEnv("APP_JWT_DURATION", "1d")
 	DB_URL = getEnv("DB_URL", "postgresql://postgres:password@localhost:5432/portfolio")
+	APP_WEB_URL = getEnv("APP_WEB_URL", "http://localhost:3000")
 	API_URL = getEnv("API_URL", "http://localhost:8000")
 	APP_PORT = getEnv("APP_PORT", "8000")
 	APP_LOG = getEnv("APP_LOG", "true") == "true"

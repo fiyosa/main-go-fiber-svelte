@@ -51,6 +51,7 @@ func OpenAPI(c *fiber.Ctx) error {
 			AuthOpenAPIPaths(),
 			PolicyOpenAPIPaths(),
 			GuestOpenAPIPaths(),
+			LoggerOpenAPIPaths(),
 		),
 		Components: openapiComponents{
 			SecuritySchemes: openapiSecurityScheme{

@@ -12,9 +12,8 @@ import (
 
 func UserRepository(c *fiber.Ctx) error {
 	userId := c.Locals("user_id").(int)
-	database := db.RUN
 	var user models.User
-	result := database.Preload("Roles").Preload("UserDetails").First(&user, userId)
+	result := db.RUN.Preload("Roles").Preload("UserDetails").First(&user, userId)
 	if result.Error != nil {
 		return c.Status(fiber.StatusNotFound).JSON(helper.Res.Error(lang.T.Convert(lang.T.Get().NOT_FOUND, map[string]any{"operator": lang.T.Get().USER}), nil))
 	}

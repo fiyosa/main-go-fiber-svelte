@@ -16,6 +16,8 @@ func RegisterAPI(app *fiber.App) {
 	api.Get("/openapi.json", controllers.OpenAPI)
 	api.Get("/docs", controllers.Docs)
 	api.Get("/guest/ping", controllers.Ping)
+	api.Get("/guest/logs", controllers.LoggerList)
+	api.Get("/guest/logs/:filename", controllers.LoggerDetail)
 
 	authGrp := api.Group("/auth")
 	authGrp.Post("/login", controllers.Login)
