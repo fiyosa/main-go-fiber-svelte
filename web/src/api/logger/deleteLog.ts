@@ -1,6 +1,11 @@
 import { instance } from "../../lib/axiosLib"
 
-export const deleteLog = async (filename: string) => {
-  const res = await instance.delete(`/log/${encodeURIComponent(filename)}`)
-  return res.data
+export interface IProps {
+  param: {
+    file_name: string
+  }
+  query: Record<string, never>
 }
+
+export const deleteLog = (props: IProps) =>
+  instance.delete(`/log/${encodeURIComponent(props.param.file_name)}`)

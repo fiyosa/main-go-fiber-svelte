@@ -6,6 +6,11 @@ export type LogFileItem = {
   size: number
 }
 
+export interface IProps {
+  param: Record<string, never>
+  query: Record<string, never>
+}
+
 export const getLogs = (options?: Partial<CreateQueryOptions<LogFileItem[]>>) =>
   useQuery<LogFileItem[]>(() => ({
     ...options,

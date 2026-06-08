@@ -96,10 +96,8 @@ func LogDetailRepository(c *fiber.Ctx) error {
 		end = total
 	}
 
-	return c.JSON(helper.Res.SuccessData(LogDetailResponse{
-		Name:  filename,
+	return c.JSON(helper.Res.Paginate(allEntries[start:end], &helper.Meta{
 		Total: total,
-		Logs:  allEntries[start:end],
 		Page:  page,
 		Limit: limit,
 	}, "Log detail retrieved successfully"))

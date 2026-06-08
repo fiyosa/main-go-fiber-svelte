@@ -14,10 +14,9 @@ type Response struct {
 }
 
 type Meta struct {
-	Total     int `json:"total"`
-	Page      int `json:"page"`
-	Limit     int `json:"limit"`
-	TotalPage int `json:"total_page"`
+	Total int `json:"total"`
+	Page  int `json:"page"`
+	Limit int `json:"limit"`
 }
 
 func (res) Success(msg string, status ...int) *Response {

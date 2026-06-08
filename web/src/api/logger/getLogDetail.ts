@@ -1,5 +1,5 @@
-import { useQuery, type CreateQueryOptions } from "../../lib/tanstackUtil"
-import { instance } from "../../lib/axiosLib"
+import { useQuery, type CreateQueryOptions } from '../../lib/tanstackUtil'
+import { createQueryStr, instance } from '../../lib/axiosLib'
 
 type LogEntry = {
   level: string
@@ -7,41 +7,52 @@ type LogEntry = {
   message: string
 }
 
-type LogDetailResponse = {
-  name: string
+type PaginationMeta = {
   total: number
-  logs: LogEntry[]
   page: number
   limit: number
 }
 
-export type { LogEntry, LogDetailResponse }
+type LogDetailResponse = {
+  message: string
+  data: LogEntry[]
+  meta: PaginationMeta
+}
 
-type DetailParams = {
-  filename: () => string | null
-  levels?: () => string
-  search?: () => string
-  page?: () => number
+export type { LogEntry, LogDetailResponse, PaginationMeta }
+
+interface IProps {
+  param: {
+    file_name: string
+  }
+  query: {
+    search: string
+    page: string
+    limit: string
+  }
 }
 
 export const getLogDetail = (
-  params: DetailParams,
-  options?: Partial<CreateQueryOptions<LogDetailResponse>>,
+  getProps: () => IProps,
+  getLevels: () => string,
+  options?: Partial<CreateQueryOptions<LogDetailResponse>>
 ) =>
-  useQuery<LogDetailResponse>(() => ({
-    queryKey: ["log", params.filename(), params.levels?.(), params.search?.(), params.page?.()],
-    queryFn: async () => {
-      const fn = params.filename()
-      if (!fn) throw new Error("No filename")
-      const q = new URLSearchParams()
-      if (params.levels?.()) q.set("levels", params.levels()!)
-      if (params.search?.()) q.set("search", params.search()!)
-      if (params.page) q.set("page", String(params.page()))
-      q.set("limit", "50")
-      const qs = q.toString()
-      const res = await instance.get(`/log/${encodeURIComponent(fn)}${qs ? "?" + qs : ""}`)
-      return res.data.data as LogDetailResponse
-    },
-    enabled: params.filename() !== null,
-    ...options,
-  }))
+  useQuery<LogDetailResponse>(() => {
+    const props = getProps()
+    const levels = getLevels()
+    return {
+      ...options,
+      queryKey: ['log', 'detail', props.param.file_name, props.query.search, props.query.page, levels],
+      queryFn: async () => {
+        const q = new URLSearchParams()
+        if (props.query.search) q.set('search', props.query.search)
+        if (props.query.page) q.set('page', props.query.page)
+        if (props.query.limit) q.set('limit', props.query.limit)
+        if (levels) q.set('levels', levels)
+        const qs = q.toString()
+        const res = await instance.get(`/log/${props.param.file_name}${qs ? '?' + qs : ''}`)
+        return { message: res.data.message ?? '', data: res.data.data as LogEntry[], meta: res.data.meta as PaginationMeta }
+      },
+      enabled: !!props.param.file_name,
+    }
+  })
