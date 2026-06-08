@@ -30,16 +30,12 @@ func (dbWriter) Printf(format string, args ...any) {
 
 func Init() {
 	var err error
-	logLevel := logger.Warn
-	if config.APP_ENV == "local" {
-		logLevel = logger.Info
-	}
 	RUN, err = gorm.Open(postgres.Open(config.DB_URL), &gorm.Config{
 		Logger: logger.New(
 			dbWriter{},
 			logger.Config{
 				SlowThreshold:             time.Second,
-				LogLevel:                  logLevel,
+				LogLevel:                  logger.Info,
 				IgnoreRecordNotFoundError: true,
 				Colorful:                  false,
 			},
