@@ -19,8 +19,6 @@ type LogDetailResponse = {
   meta: PaginationMeta
 }
 
-export type { LogEntry, LogDetailResponse, PaginationMeta }
-
 interface IProps {
   param: {
     file_name: string
@@ -29,29 +27,23 @@ interface IProps {
     search: string
     page: string
     limit: string
+    levels: string
   }
 }
 
-export const getLogDetail = (
-  getProps: () => IProps,
-  getLevels: () => string,
-  options?: Partial<CreateQueryOptions<LogDetailResponse>>
-) =>
+export const getLogDetail = (getProps: () => IProps, options?: Partial<CreateQueryOptions<LogDetailResponse>>) =>
   useQuery<LogDetailResponse>(() => {
     const props = getProps()
-    const levels = getLevels()
     return {
       ...options,
-      queryKey: ['log', 'detail', props.param.file_name, props.query.search, props.query.page, levels],
+      queryKey: ['log', 'detail', props.param.file_name, props.query.search, props.query.page, props.query.levels],
       queryFn: async () => {
-        const q = new URLSearchParams()
-        if (props.query.search) q.set('search', props.query.search)
-        if (props.query.page) q.set('page', props.query.page)
-        if (props.query.limit) q.set('limit', props.query.limit)
-        if (levels) q.set('levels', levels)
-        const qs = q.toString()
-        const res = await instance.get(`/log/${props.param.file_name}${qs ? '?' + qs : ''}`)
-        return { message: res.data.message ?? '', data: res.data.data as LogEntry[], meta: res.data.meta as PaginationMeta }
+        const res = await instance.get(`/log/${encodeURIComponent(props.param.file_name)}${createQueryStr(props)}`)
+        return {
+          message: res.data.message ?? '',
+          data: res.data.data as LogEntry[],
+          meta: res.data.meta as PaginationMeta,
+        }
       },
       enabled: !!props.param.file_name,
     }

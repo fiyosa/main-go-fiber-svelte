@@ -1,6 +1,7 @@
 <script lang="ts">
-  import { getLogs, getLogDetail, deleteLog } from '../../api/logger'
+  import { getLogs, getLogDetail, deleteLog as createDeleteLog } from '../../api/logger'
   import { instance } from '../../lib/axiosLib'
+  const deleteLog = createDeleteLog()
 
   let selectedFile = $state<string | null>(null)
   let searchQuery = $state('')
@@ -14,17 +15,15 @@
 
   const filesQuery = getLogs()
 
-  const detailQuery = getLogDetail(
-    () => ({
-      param: { file_name: selectedFile ?? '' },
-      query: {
-        search: searchQuery,
-        page: String(currentPage),
-        limit: '50',
-      },
-    }),
-    () => Object.keys(selectedLevels).filter(k => selectedLevels[k]).join(',')
-  )
+  const detailQuery = getLogDetail(() => ({
+    param: { file_name: selectedFile ?? '' },
+    query: {
+      search: searchQuery,
+      page: String(currentPage),
+      limit: '50',
+      levels: Object.keys(selectedLevels).filter(k => selectedLevels[k]).join(','),
+    },
+  }))
 
   function levelBadge(level: string): string {
     if (level === 'error' || level === 'emergency' || level === 'alert' || level === 'critical')
@@ -46,10 +45,6 @@
   function toggleLevel(level: string) {
     selectedLevels = { ...selectedLevels, [level]: !selectedLevels[level] }
     currentPage = 1
-  }
-
-  function allLevelsDisabled(): boolean {
-    return Object.values(selectedLevels).every(v => !v)
   }
 
   function onSearchInput() {
@@ -100,11 +95,14 @@
     a.click()
   }
 
-  async function handleDelete(name: string) {
+  function handleDelete(name: string) {
     if (!confirm(`Delete ${name}?`)) return
-    await deleteLog({ param: { file_name: name }, query: {} })
-    if (selectedFile === name) selectedFile = null
-    filesQuery.refetch?.()
+    deleteLog.mutate({ param: { file_name: name } }, {
+      onSuccess: () => {
+        if (selectedFile === name) selectedFile = null
+        filesQuery.refetch?.()
+      },
+    })
   }
 </script>
 
@@ -159,7 +157,7 @@
           <button
             class="text-xs mr-1.5 px-3 py-1.5 rounded font-semibold uppercase transition bg-blue-700 text-white {selectedLevels[
               'info'
-            ] || allLevelsDisabled()
+            ]
               ? 'ring-2 ring-white/40'
               : 'ring-0 opacity-60'}"
             onclick={() => toggleLevel('info')}>info</button
@@ -167,7 +165,7 @@
           <button
             class="text-xs px-3 py-1.5 rounded font-semibold uppercase transition bg-red-700 text-white {selectedLevels[
               'error'
-            ] || allLevelsDisabled()
+            ]
               ? 'ring-2 ring-white/40'
               : 'ring-0 opacity-60'}"
             onclick={() => toggleLevel('error')}>error</button
