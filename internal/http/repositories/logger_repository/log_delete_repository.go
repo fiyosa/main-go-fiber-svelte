@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"go-fiber-svelte/internal/helper"
+	"go-fiber-svelte/internal/lib"
 
 	"github.com/gofiber/fiber/v2"
 )
@@ -15,7 +16,10 @@ func LogDeleteRepository(c *fiber.Ctx) error {
 		return c.Status(fiber.StatusBadRequest).JSON(helper.Res.Error("Invalid filename", nil))
 	}
 
-	if err := os.Remove("./logs/" + filename); err != nil {
+	filePath := "./logs/" + filename
+	lib.Log.CloseFile(filePath)
+
+	if err := os.Remove(filePath); err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(helper.Res.Error("Log file not found", nil))
 	}
 

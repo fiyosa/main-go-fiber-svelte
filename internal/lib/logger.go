@@ -31,9 +31,10 @@ type logEntry struct {
 }
 
 type logWriter struct {
-	file    *os.File
-	mu      sync.Mutex
-	logName string
+	file     *os.File
+	mu       sync.Mutex
+	logName  string
+	filePath string
 }
 
 func (l *logLib) getOrCreate(name string) *zerolog.Logger {
@@ -60,10 +61,22 @@ func (l *logLib) getOrCreate(name string) *zerolog.Logger {
 		l.files[name] = &logFile{logger: logger}
 		return &logger
 	}
-	writer := &logWriter{file: file, logName: name}
+	writer := &logWriter{file: file, logName: name, filePath: logDir + "/" + name + "_" + time.Now().Format("2006-01-02") + ".log"}
 	logger := zerolog.New(writer).With().Timestamp().Logger()
 	l.files[name] = &logFile{writer: writer, logger: logger}
 	return &logger
+}
+
+func (l *logLib) CloseFile(filePath string) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	for name, f := range l.files {
+		if f.writer != nil && f.writer.filePath == filePath {
+			f.writer.file.Close()
+			delete(l.files, name)
+			return
+		}
+	}
 }
 
 func (w *logWriter) Write(p []byte) (int, error) {

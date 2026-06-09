@@ -23,6 +23,7 @@ Project follows [golang-standards/project-layout](https://github.com/golang-stan
 | `web/`      | Web application components — Vite + Svelte 5 SPA frontend.                                                                                        |
 | `public/`   | Build output and static assets served by Go Fiber.                                                                                                |
 | `build/`    | Packaging — Dockerfile in `build/package/`.                                                                                                       |
+| `logs/`     | Runtime log files — created automatically on first log write, gitignored.                                                                         |
 | —           | `.env.example` at project root.                                                                                                                   |
 | `docs/`     | Project documentation.                                                                                                                            |
 | `scripts/`  | Build/deploy scripts.                                                                                                                             |
@@ -48,24 +49,28 @@ Project follows [golang-standards/project-layout](https://github.com/golang-stan
 │   │   └── app.go               # Init middleware, register routes
 │   │
 │   ├── config/
-│   │   └── config.go            # Load .env → Config struct
+│   │   ├── app.go               # App-level config (APP_LOG, APP_URL, etc.)
+│   │   ├── config.go            # Load .env → Config struct
+│   │   └── cors.go              # CORS configuration
 │   │
 │   ├── http/                    # HTTP layer
 │   │   ├── controllers/         # Thin HTTP handlers
 │   │   │   ├── auth_controller.go
 │   │   │   ├── guest_controller.go
 │   │   │   ├── doc_controller.go
+│   │   │   ├── logger_controller.go  # Log viewer endpoints
 │   │   │   └── policy_controller.go
 │   │   ├── repositories/        # Business logic (1 file per endpoint)
 │   │   │   ├── auth/
 │   │   │   │   ├── login_repository.go
 │   │   │   │   ├── logout_repository.go
 │   │   │   │   └── user_repository.go
+│   │   │   ├── logger_repository/  # Log viewer business logic
+│   │   │   │   ├── log_list_repository.go
+│   │   │   │   ├── log_detail_repository.go
+│   │   │   │   ├── log_download_repository.go
+│   │   │   │   └── log_delete_repository.go
 │   │   │   └── policy/
-│   │   │       ├── role_list_repository.go
-│   │   │       ├── permission_list_repository.go
-│   │   │       ├── permission_store_repository.go
-│   │   │       └── permission_destroy_repository.go
 │   │   ├── request/             # Struct validasi (go-playground/validator)
 │   │   │   ├── auth/
 │   │   │   │   └── login_request.go
@@ -143,6 +148,7 @@ Project follows [golang-standards/project-layout](https://github.com/golang-stan
 │   │   │   └── guest/
 │   │   │       ├── Home.svelte
 │   │   │       ├── About.svelte
+│   │   │       ├── Logger.svelte  # Log viewer UI (sidebar + entries + pagination)
 │   │   │       └── NotFound.svelte
 │   │   │
 │   │   ├── lib/                 # Svelte components & logic
@@ -150,11 +156,17 @@ Project follows [golang-standards/project-layout](https://github.com/golang-stan
 │   │   │   │   └── ...svelte
 │   │   │   ├── stores/
 │   │   │   │   └── auth.ts
+│   │   │   ├── tanstackUtil.ts  # useQuery/useMutation wrapper for TanStack Query v6
 │   │   │   └── utils/
-│   │   │       ├── axios.ts     # Axios instance + interceptor
+│   │   │       ├── axiosLib.ts  # Axios instance + createQueryStr utility
 │   │   │       └── ...
 │   │   │
 │   │   ├── api/                 # Frontend API hooks (TanStack Query)
+│   │   │   ├── logger/          # Log viewer API hooks
+│   │   │   │   ├── index.ts
+│   │   │   │   ├── getLogs.ts
+│   │   │   │   ├── getLogDetail.ts
+│   │   │   │   └── deleteLog.ts
 │   │   │   ├── auth/
 │   │   │   │   ├── index.ts
 │   │   │   │   ├── login.ts
@@ -262,7 +274,7 @@ Semua response API menggunakan `helper.Res.*` — lihat penggunaan di `controlle
   "message": "...",
   "data": { ... },
   "errors": { ... },
-  "meta": { "total": 0, "page": 1, "limit": 10, "total_page": 0 }
+  "meta": { "total": 0, "page": 1, "limit": 10 }
 }
 ```
 
@@ -316,6 +328,10 @@ db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
 | POST   | `/api/policy/permission`     | auth | -      | `policyController.permissionStore`   | Create permission              |
 | DELETE | `/api/policy/permission/:id` | auth | -      | `policyController.permissionDestroy` | Delete permission (soft)       |
 | GET    | `/api/guest/ping`            | -    | -      | `guestController.ping`               | Health check                   |
+| GET    | `/api/log`                   | -    | -      | `loggerController.LoggerList`        | List log files with name + size |
+| GET    | `/api/log/:filename`         | -    | -      | `loggerController.LoggerDetail`      | Log entries (filter, search, paginate) |
+| DELETE | `/api/log/:filename`         | -    | -      | `loggerController.LoggerDelete`      | Delete log file                 |
+| GET    | `/api/log/:filename/download`| -    | -      | `loggerController.LoggerDownload`    | Download log file               |
 | \*     | `/api/*`                     | -    | -      | 404 JSON                             | Fallback for invalid API paths |
 
 ---
@@ -328,7 +344,7 @@ db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
 | -------------- | -------------------------------------------- | --------------------------------- |
 | `hash.go`      | `Generate`, `Verify`, `EncodeId`, `DecodeId` | bcrypt hashing + Hashids encoding |
 | `jwt.go`       | `Create`, `Verify`                           | JWT sign/verify with APP_SECRET   |
-| `logger.go`    | `Info`, `Error`, `Warn`, `Debug`             | Zerolog logging                   |
+| `logger.go`    | `Info`, `Error`, `Info`, `CloseFile`         | Zerolog logging + file handle closing |
 | `validator.go` | `Validate`, `ValidateRequest`                | go-playground/validator wrapper   |
 
 ### Go Utilities (`internal/utils/`):
@@ -351,6 +367,8 @@ db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
 | `prettier`                     | ^3.8.3  | Code formatter                            |
 | `prettier-plugin-svelte`       | ^4.1.0  | Svelte Prettier plugin                    |
 | `prettier-plugin-tailwindcss`  | ^0.8.0  | Tailwind class sorting                    |
+| `@tanstack/svelte-query`      | ^6.3.0  | TanStack Query (async state, cache, mutations) |
+| `axios`                        | ^1.7.9  | HTTP client for API requests              |
 
 ---
 
@@ -358,27 +376,32 @@ db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
 
 ### Environment Variables (.env):
 
-| Variable           | Example                 | Scope  |
-| ------------------ | ----------------------- | ------ |
-| `APP_ENV`          | `local`                 | Public |
-| `APP_LOCALE`       | `en`                    | Public |
-| `APP_SECRET`       | `secret`                | Secret |
-| `APP_JWT_DURATION` | `1d`                    | Public |
-| `DB_URL`           | `postgresql://...`      | Secret |
-| `API_URL`          | `http://localhost:8000` | Public |
-| `PORT`             | `8000`                  | Public |
-| `APP_LOG`          | `true`                  | Public |
+| Variable           | Example                     | Scope  |
+| ------------------ | --------------------------- | ------ |
+| `APP_ENV`          | `local`                     | Public |
+| `APP_LOCALE`       | `en`                        | Public |
+| `APP_SECRET`       | `secret`                    | Secret |
+| `APP_JWT_DURATION` | `1d`                        | Public |
+| `APP_URL`          | `http://localhost:3000`     | Public |
+| `DB_URL`           | `postgresql://...`          | Secret |
+| `API_URL`          | `http://localhost:8000`     | Public |
+| `PORT`             | `8000`                      | Public |
+| `APP_LOG`          | `true`                      | Public |
 
 Config loaded via `internal/config/config.go` (using `github.com/joho/godotenv` + `os.Getenv`). Jika file `.env` tidak ditemukan (misal di container), fallback ke env vars dari Docker `--env-file`.
+
+**`APP_URL`** digunakan oleh `internal/config/cors.go` sebagai `AllowOrigins` di CORS config. Dipisahkan dari `API_URL` karena frontend dev server (port 3000) bisa beda dengan backend (port 8000).
 
 ### Logger (`internal/lib/logger.go`)
 
 - Logging dikontrol oleh `APP_LOG` (default `true`)
 - `APP_LOG=false` → `zerolog.Nop()` (no-op, tidak ada file atau stdout)
 - `APP_LOG=true` → tulis log ke file `./logs/{name}_YYYY-MM-DD.log`
-- Saat ini hanya ada 1 pemanggil: `internal/db/db.go` (GORM query log, name: `"db"`)
+- Pemanggil: `internal/db/db.go` (GORM query, name: `"db"`), `cmd/app/main.go` (server status, name: `"fiber"`)
 - Di production (`APP_ENV != "local"`), GORM log level = `Warn`, jadi query normal tidak tercatat — hanya slow query & error
 - Folder `./logs/` terbuat otomatis saat `lib.Log.Info/Error` pertama dipanggil
+- File handle disimpan di memory (`logWriter.file`) — setiap panggilan `getOrCreate(name)` dengan nama prefix yang sama mengembalikan writer yang sudah ada
+- `lib.Log.CloseFile(filePath string)` — method untuk menutup file handle sebelum file dihapus (diperlukan di Windows karena `os.Remove` gagal jika file masih terbuka). Memanggil `file.Close()` pada writer yang cocok dengan `filePath` dan menghapusnya dari map
 
 ---
 
@@ -415,6 +438,14 @@ Custom i18n system at `internal/lang/`:
 - **Navigation guards:** `registerBeforeLeave()` for dirty-form protection.
 - **Permissions (frontend):** Built-in RBAC with `createProtectedRoute()`, `hasPermission()`.
 - **API hooks:** `web/src/api/` berisi wrapper TanStack Query per endpoint. Naming: `{method}{Name}` (getUser, postLogin, etc). Barrel per subfolder.
+- **TanStack Query pattern (Svelte 5 runes):**
+  - `@tanstack/svelte-query` v6 — `createQuery` dan `createMutation` dipanggil via `useQuery`/`useMutation` wrapper (`internal/lib/tanstackUtil.ts`) dengan `() => QueryClient` untuk shared client
+  - Setiap API hook file menggunakan interface `IProps` dengan `param` (path params) dan `query` (query string params)
+  - Query hooks menggunakan **getter pattern**: `() => IProps` — karena `createBaseQuery.svelte.js` memanggil `options()` di dalam `$derived.by`, getter diperlukan agar Svelte 5 bisa melacak pembacaan `$state`
+  - `createQueryStr(props)` dari `axiosLib.ts` untuk membangun query string dari `IProps.query` secara otomatis
+  - Mutation hooks (`useMutation`) dibuat via factory function: `export const deleteLog = () => useMutation(...)` — dipanggil sekali di komponen, hasilnya disimpan untuk digunakan `mutate()`
+  - `queryKey` mencakup semua variable yang mempengaruhi hasil query (`file_name`, `search`, `page`, `levels`) — beda param = beda cache
+  - `enabled: !!props.param.file_name` — disable query saat param belum siap (e.g. `selectedFile` masih `null`)
 - **TypeScript:** Strict mode.
 - **Formatting:** Prettier with `prettier-plugin-svelte` + `prettier-plugin-tailwindcss`.
 - **CSS:** Tailwind CSS v4 via `@tailwindcss/vite` plugin — import `@import "tailwindcss"` di `app.css`, class-based styling, otomatis sort via Prettier.
@@ -460,9 +491,98 @@ Binary output ke `./tmp/` (terdaftar di `.gitignore`).
 - **`go run ./cmd/migrate`** — Run database migrations (AutoMigrate)
 - **`go run ./cmd/seed`** — Run database seeder
 
+ ---
+
+## 12. Log Viewer
+
+### Overview
+
+Log viewer untuk membaca log file JSON yang dihasilkan oleh `internal/lib/logger.go`. Backend membaca file langsung dari filesystem (`./logs/`) tanpa database. Frontend menyediakan UI untuk browsing, filter, search, pagination, expand/collapse log entries, download, dan delete.
+
+### Backend — Log API (`/api/log`)
+
+Semua endpoint di bawah grup `/api/log`, public (tanpa auth), tag OpenAPI `"Log"`.
+
+| Method | Path | Repository | Description |
+|--------|------|-----------|-------------|
+| GET | `/api/log` | `log_list_repository.go` | List file `.log` di folder `./logs/`, return `[{name, size}]` sorted descending |
+| GET | `/api/log/:filename` | `log_detail_repository.go` | Baca file, filter level, search, pagination via `helper.Res.Paginate` |
+| DELETE | `/api/log/:filename` | `log_delete_repository.go` | Hapus file (close handle via `lib.Log.CloseFile` dulu, baru `os.Remove`) |
+| GET | `/api/log/:filename/download` | `log_download_repository.go` | Download file via `c.SendFile` |
+
+**Log Detail Query Params:**
+
+| Param | Type | Description |
+|-------|------|-------------|
+| `levels` | string (comma-separated) | Filter by level (e.g. `info,error`) |
+| `search` | string | Text search di field `message` |
+| `page` | integer | Page number (default 1) |
+| `limit` | integer | Items per page (default 50) |
+
+**Response format (paginated):**
+```json
+{
+  "message": "...",
+  "data": [{ "level": "info", "time": "2026-06-09 12:00:00", "message": "..." }],
+  "meta": { "total": 100, "page": 1, "limit": 50 }
+}
+```
+
+### Backend — Delete File Handling
+
+Di Windows, `os.Remove` gagal jika file masih terbuka oleh proses yang sama. Log writer (`lib/logger.go`) menyimpan `*os.File` handle di memory. Saat delete:
+1. `LogDeleteRepository` panggil `lib.Log.CloseFile("./logs/" + filename)` — search di `l.files` map, jika ada writer dengan `filePath` cocok, `file.Close()` dan `delete(l.files, name)`
+2. `os.Remove("./logs/" + filename)` — berhasil karena handle sudah ditutup
+
+### Frontend — API Hooks (`web/src/api/logger/`)
+
+Menggunakan `@tanstack/svelte-query` v6 dengan pattern getter untuk Svelte 5 reactivity.
+
+| File | Type | IProps | Query Key |
+|------|------|--------|-----------|
+| `getLogs.ts` | useQuery | `{ param: {}, query: {} }` | `["log"]` |
+| `getLogDetail.ts` | useQuery | `{ param: { file_name }, query: { search, page, limit }, levels }` | `["log", "detail", file_name, search, page, levels]` |
+| `deleteLog.ts` | useMutation (factory) | `{ param: { file_name } }` | — |
+
+**Pattern:**
+- Query hooks menerima getter `() => IProps`, dipanggil oleh `createQuery` di dalam `$derived.by` → Svelte 5 track `$state` reads
+- `enabled: !!props.param.file_name` — query tidak jalan jika `file_name` kosong
+- `queryKey` mencakup semua variable yang mempengaruhi hasil → cache terisolasi per kombinasi filter
+- `createQueryStr(props)` dari `axiosLib.ts` membangun query string dari `IProps.query`
+
+### Frontend — Logger Page (`web/src/pages/guest/Logger.svelte`)
+
+Layout split: sidebar (file list) + main area (entries).
+
+| Component | Description |
+|-----------|-------------|
+| **Sidebar** | List file `.log` dengan nama + size (format human-readable via `formatSize`). Klik untuk select file |
+| **Search bar** | Input text dengan debounce 300ms. Clear button. Memicu `currentPage = 1` |
+| **Level filter** | Tombol `info` (blue) dan `error` (red). `Record<string, boolean>` — toggle tiap level independent. Semua mati → tidak ada filter (semua level tampil) |
+| **Log entries** | Tampilkan `level` badge, `time`, `message` (clamp 2 baris). Klik untuk expand/collapse — `expandedIndex` state |
+| **Expanded content** | `<pre>` dengan `whitespace-pre-wrap` di dalam div `flex-1` message column, border left untuk visual indentasi |
+| **Pagination** | Prev/Next + page numbers. `pageNumbers()` function — format compact untuk banyak halaman (with `...`). Detail dihitung client-side: `Math.ceil(total / limit)` |
+| **Action buttons** | Refresh (`detailQuery.refetch()`), Download (`<a>` dengan `instance.defaults.baseURL`), Delete (`deleteLog.mutate()` dengan `onSuccess` callback) |
+
+### Level Filter State
+
+```typescript
+let selectedLevels = $state<Record<string, boolean>>({
+  info: true,
+  error: true,
+})
+
+function toggleLevel(level: string) {
+  selectedLevels = { ...selectedLevels, [level]: !selectedLevels[level] }
+  currentPage = 1
+}
+```
+
+Nilai levels dikirim sebagai query param: `Object.keys(selectedLevels).filter(k => selectedLevels[k]).join(',')`.
+
 ---
 
-## 12. Production
+## 13. Production
 
 ### Build & Deploy
 
@@ -489,6 +609,9 @@ Atau via `scripts/deploy.sh` yang menjalankan `docker build` + `docker run` + cl
 app := fiber.New(fiber.Config{
     ErrorHandler: provider.NewErrorHandler(),
 })
+
+// CORS — allow frontend dev server (APP_URL)
+app.Use(cors.New(config.CORSConfig()))
 
 // Static assets (CSS/JS from Vite build)
 app.Static("/", "public")
@@ -576,4 +699,4 @@ auth := api.Group("/auth", authMw.Handle)
 auth.Get("/user", authController.User)
 ```
 
-Public API routes: `/api/openapi.json`, `/api/docs`, `/api/guest/ping`, `/api/auth/login`. All others return 401 if unauthenticated.
+Public API routes: `/api/openapi.json`, `/api/docs`, `/api/guest/ping`, `/api/auth/login`, `/api/log/*`. All others return 401 if unauthenticated.
