@@ -22,12 +22,13 @@ type openapiComponents struct {
 }
 
 type openapiSecurityScheme struct {
-	Bearer openapiBearer `json:"bearer"`
+	Cookie openapiCookieAuth `json:"cookieAuth"`
 }
 
-type openapiBearer struct {
-	Type   string `json:"type"`
-	Scheme string `json:"scheme"`
+type openapiCookieAuth struct {
+	Type string `json:"type"`
+	In   string `json:"in"`
+	Name string `json:"name"`
 }
 
 func mergeMaps(maps ...map[string]any) map[string]any {
@@ -55,9 +56,10 @@ func OpenAPI(c *fiber.Ctx) error {
 		),
 		Components: openapiComponents{
 			SecuritySchemes: openapiSecurityScheme{
-				Bearer: openapiBearer{
-					Type:   "http",
-					Scheme: "bearer",
+				Cookie: openapiCookieAuth{
+					Type: "apiKey",
+					In:   "cookie",
+					Name: "token",
 				},
 			},
 		},
