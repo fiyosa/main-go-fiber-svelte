@@ -1,6 +1,7 @@
 package routes
 
 import (
+	"go-fiber-svelte/internal/helper"
 	"go-fiber-svelte/internal/http/controllers"
 	"go-fiber-svelte/internal/middleware"
 	"go-fiber-svelte/internal/provider"
@@ -32,4 +33,8 @@ func RegisterAPI(app *fiber.App) {
 	policyGrp.Get("/permission", policy("permission-list"), controllers.PermissionList)
 	policyGrp.Post("/permission", policy("permission-store"), controllers.PermissionStore)
 	policyGrp.Delete("/permission/:id", policy("permission-destroy"), controllers.PermissionDestroy)
+
+	app.Get("/api/*", func(c *fiber.Ctx) error {
+		return c.Status(fiber.StatusNotFound).JSON(helper.Res.Error("API endpoint not found", nil))
+	})
 }
